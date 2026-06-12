@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Tesla Charger",
+    "slug": "teslacharger",
+    "scheme": "teslacharger",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.clankersystems.teslacharger"
+    },
+    "android": {
+      "package": "com.clankersystems.teslacharger",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0a0a0c"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-asset"
+    ],
+    "extra": {
+      "apiBase": "${EXPO_PUBLIC_API_BASE}"
+    }
+  }
+}

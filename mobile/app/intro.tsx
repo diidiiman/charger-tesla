@@ -69,44 +69,48 @@ export default function Intro() {
         <Pill label={`${index + 1} / ${SLIDES.length}`} />
       </View>
 
-      <FlatList
-        ref={ref}
-        data={SLIDES}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, i) => String(i)}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        style={{ flexGrow: 0 }}
-        renderItem={({ item }) => (
-          <View style={{ width, paddingHorizontal: theme.space['2xl'] }}>
-            <View style={styles.slide}>
-              <Label>{item.label}</Label>
-              <H1 style={{ marginTop: theme.space.md }}>{item.title}</H1>
-              <Body muted style={{ marginTop: theme.space.lg }}>
-                {item.body}
-              </Body>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <FlatList
+          ref={ref}
+          data={SLIDES}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, i) => String(i)}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          style={{ flexGrow: 0 }}
+          renderItem={({ item }) => (
+            <View style={{ width, paddingHorizontal: theme.space['2xl'] }}>
+              <View style={styles.slide}>
+                <Label>{item.label}</Label>
+                <H1 style={{ marginTop: theme.space.md }}>{item.title}</H1>
+                <Body muted style={{ marginTop: theme.space.lg }}>
+                  {item.body}
+                </Body>
+              </View>
             </View>
-          </View>
-        )}
-      />
-
-      <View style={styles.dots}>
-        {SLIDES.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === index && { backgroundColor: theme.fg.primary, width: 18 }]}
-          />
-        ))}
+          )}
+        />
       </View>
 
-      <View style={{ paddingHorizontal: theme.space['2xl'], paddingBottom: theme.space.xl }}>
-        <Button
-          title={index === SLIDES.length - 1 ? 'Get started' : 'Next'}
-          variant="primary"
-          onPress={next}
-        />
+      <View>
+        <View style={styles.dots}>
+          {SLIDES.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === index && { backgroundColor: theme.fg.primary, width: 18 }]}
+            />
+          ))}
+        </View>
+
+        <View style={{ paddingHorizontal: theme.space['2xl'], paddingBottom: theme.space.xl }}>
+          <Button
+            title={index === SLIDES.length - 1 ? 'Get started' : 'Next'}
+            variant="primary"
+            onPress={next}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );

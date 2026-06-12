@@ -1,18 +1,66 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Starting Tesla Charger infrastructure..."
+usage() {
+  echo "Usage: $0 {up|down|nuke}"
+  echo ""
+  echo "  up      Start the infrastructure (default if no argument is provided)."
+  echo "  down    Stop and remove containers and networks."
+  echo "  nuke    Stop, remove containers, networks, and delete ALL volumes and images."
+  echo ""
+  exit 1
+}
 
-# Bring up the Docker containers
-docker compose up -d --build
+up() {
+  echo "Starting Tesla Charger infrastructure..."
 
-echo ""
-echo "Containers are up! View logs with:"
-echo "docker compose logs -f"
-echo ""
-echo "To run tests in the backend container:"
-echo "docker compose exec backend pytest"
-echo ""
-echo "To run linter in the backend container:"
-echo "docker compose exec backend black ."
-echo ""
+  # Bring up the Docker containers
+  docker compose up -d --build
+
+  echo ""
+  echo "Containers are up! View logs with:"
+  echo "docker compose logs -f"
+  echo ""
+  echo "To run tests in the backend container:"
+  echo "docker compose exec backend pytest"
+  echo ""
+  echo "To run linter in the backend container:"
+  echo "docker compose exec backend black ."
+  echo ""
+}
+
+down() {
+  echo "Stopping Tesla Charger infrastructure..."
+  docker compose down
+  echo "Infrastructure stopped."
+}
+
+nuke() {
+  echo "WARNING: This will stop all containers and delete ALL volumes and images related to this project."
+  read -r -p "Are you sure you want to continue? [y/N] " response
+  if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    echo "Nuking infrastructure..."
+    docker compose down -v --rmi all --remove-orphans
+    echo "Infrastructure nuked."
+  else
+    echo "Nuke operation cancelled."
+  fi
+}
+
+case "$1" in
+  up)
+    up
+    ;;
+  down)
+    down
+    ;;
+  nuke)
+    nuke
+    ;;
+  "")
+    up
+    ;;
+  *)
+    usage
+    ;;
+esac

@@ -91,6 +91,20 @@ async def _nordpool_current(region: str) -> dict:
         "provider": "nordpool",
     }
 
+VAT_RATES = {
+    "NO": 1.25,
+    "SE": 1.25,
+    "DK": 1.25,
+    "FI": 1.255, # 25.5% since Sep 2024
+    "EE": 1.22,
+    "LV": 1.21,
+    "LT": 1.21,
+}
+
+def get_vat_multiplier(region: str) -> float:
+    country = region[:2]
+    return VAT_RATES.get(country, 1.0)
+
 
 async def current_price(region: str) -> dict:
     if region not in VALID_REGION_CODES:

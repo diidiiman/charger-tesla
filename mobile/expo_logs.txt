@@ -1,0 +1,131 @@
+Script started on 2026-06-12 16:46:56+03:00 [COMMAND="npm start -- --android" <not executed on terminal>]
+
+> teslacharger-mobile@0.1.0 start
+> expo start --android
+
+  [38;5;169;1mexpo:telemetry [0mSwitching strategy from detached to instant [38;5;169m+0ms[0m
+  [38;5;169;1mexpo:telemetry [0mRecording 1 event(s) [38;5;169m+32ms[0m
+  [38;5;163;1mexpo:env [0mLoaded environment variables from: /home/d3/Coding/TeslaCharger/mobile/.env.local [38;5;163m+0ms[0m
+[90menv: load .env.local[39m
+[90menv: export EXPO_PUBLIC_API_BASE[39m
+[90mStarting project at /home/d3/Coding/TeslaCharger/mobile[39m
+(node:32947) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  [38;5;57;1mexpo:utils:fileNotifier [0mObserving /home/d3/Coding/TeslaCharger/mobile/babel.config.js [38;5;57m+0ms[0m
+  [38;5;93;1mexpo:start:server:devServer [0mStopping dev server (bundler: metro) [38;5;93m+0ms[0m
+  [38;5;93;1mexpo:start:server:devServer [0mStopped dev server (bundler: metro) [38;5;93m+0ms[0m
+  [38;5;93;1mexpo:start:server:metro:router [0mUsing app as the root directory for Expo Router. [38;5;93m+0ms[0m
+
+Expo Metro config:
+- Version: 0.19.12
+- Extensions: ts, tsx, mjs, js, jsx, json, cjs, scss, sass, css
+- React Native: /home/d3/Coding/TeslaCharger/mobile/node_modules/react-native
+- Watch Folders: 
+- Node Module Paths: 
+- Env Files: .env.development.local,.env.local,.env.development,.env
+- Sass: null
+- Reanimated: null
+
+  [38;5;57;1mexpo:utils:fileNotifier [0mObserving /home/d3/Coding/TeslaCharger/mobile/tsconfig.json [38;5;57m+395ms[0m
+  [38;5;221;1mexpo:metro:withMetroResolvers [0mAppending 7 custom resolvers to Metro config. (has custom resolver: false) [38;5;221m+0ms[0m
+  [38;5;198;1mexpo:start:server:urlCreator [0mURL: http://127.0.0.1:8081 [38;5;198m+0ms[0m
+[2mStarting Metro Bundler[22m
+  [38;5;32;1mexpo:start:server:middleware:serveStatic [0mServing static files from: /home/d3/Coding/TeslaCharger/mobile/public [38;5;32m+0ms[0m
+  [38;5;198;1mexpo:start:server:urlCreator [0mURL: exp://192.168.2.244:8081 [38;5;198m+88ms[0m
+  [38;5;170;1mexpo:start:server:developmentSession [0mDevelopment session ping (runtime: native, url: exp://192.168.2.244:8081) [38;5;170m+0ms[0m
+  [38;5;99;1mexpo:start:server:metro:waitForTypescript [0mWatching file changes: [
+  '/home/d3/Coding/TeslaCharger/mobile/.env.development.local',
+  '/home/d3/Coding/TeslaCharger/mobile/.env.local',
+  '/home/d3/Coding/TeslaCharger/mobile/.env.development',
+  '/home/d3/Coding/TeslaCharger/mobile/.env'
+] [38;5;99m+0ms[0m
+  [38;5;209;1mexpo:doctor:typescriptSupport [0mEnsuring TypeScript support is setup [38;5;209m+0ms[0m
+  [38;5;99;1mexpo:doctor:dependencies:getMissingPackages [0mRequired package "typescript" found (no version constraint specified). [38;5;99m+0ms[0m
+  [38;5;99;1mexpo:doctor:dependencies:getMissingPackages [0mRequired package "@types/react" found (no version constraint specified). [38;5;99m+0ms[0m
+  [38;5;171;1mexpo:typed-routes [0mRemoving typed routes side-effects (experiments.typedRoutes: false) [38;5;171m+0ms[0m
+  [38;5;134;1mexpo:doctor:dependencies:bundledNativeModules [0mFetching bundled native modules from the server... [38;5;134m+0ms[0m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0mChecking dependencies for 52.0.0: {
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  expo: [32m'~52.0.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-application'[39m: [32m'~6.0.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-asset'[39m: [32m'~11.0.5'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-constants'[39m: [32m'~17.0.3'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-crypto'[39m: [32m'~14.0.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-in-app-purchases'[39m: [32m'^14.5.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-linking'[39m: [32m'~7.0.3'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-router'[39m: [32m'~4.0.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-secure-store'[39m: [32m'~14.0.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-status-bar'[39m: [32m'~2.0.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-web-browser'[39m: [32m'~14.0.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  react: [32m'18.3.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-dom'[39m: [32m'18.3.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native'[39m: [32m'^0.76.9'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-safe-area-context'[39m: [32m'4.12.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-screens'[39m: [32m'~4.4.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-web'[39m: [32m'~0.19.13'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'@types/react'[39m: [32m'~18.3.12'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  typescript: [32m'~5.3.3'[39m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m} [38;5;206m+0ms[0m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0mComparing known versions: [
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-application'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-asset'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-constants'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-crypto'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-linking'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-router'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-secure-store'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-status-bar'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-web-browser'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-dom'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-safe-area-context'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-screens'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-web'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'@types/react'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'typescript'[39m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m] [38;5;206m+0ms[0m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0mSkipping packages that cannot be versioned automatically: [ [32m'expo-in-app-purchases'[39m ] [38;5;206m+1ms[0m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0mPackage versions: {
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  expo: [32m'52.0.49'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-application'[39m: [32m'6.0.2'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-asset'[39m: [32m'11.0.5'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-constants'[39m: [32m'17.0.8'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-crypto'[39m: [32m'14.0.2'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-linking'[39m: [32m'7.0.5'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-router'[39m: [32m'4.0.22'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-secure-store'[39m: [32m'14.0.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-status-bar'[39m: [32m'2.0.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'expo-web-browser'[39m: [32m'14.0.2'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  react: [32m'18.3.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-dom'[39m: [32m'18.3.1'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native'[39m: [32m'0.76.9'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-safe-area-context'[39m: [32m'4.12.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-screens'[39m: [32m'4.4.0'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'react-native-web'[39m: [32m'0.19.13'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  [32m'@types/react'[39m: [32m'18.3.31'[39m,
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m  typescript: [32m'5.3.3'[39m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0m} [38;5;206m+4ms[0m
+  [38;5;206;1mexpo:doctor:dependencies:validate [0mIncorrect dependencies: [] [38;5;206m+5ms[0m
+  [38;5;93;1mexpo:start:server:devServer [0mCreating platform manager (platform: emulator, port: 8081) [38;5;93m+2s[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb devices -l [38;5;57m+0ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb -s emulator-5554 emu avd name [38;5;57m+11ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb -s emulator-5554 reverse tcp:8081 tcp:8081 [38;5;57m+10ms[0m
+  [38;5;184;1mexpo:start:platforms:platformManager [0mopen (runtime: expo, platform: android, device: [90mundefined[39m, shouldPrompt: undefined) [38;5;184m+0ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb devices -l [38;5;57m+15ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb -s emulator-5554 emu avd name [38;5;57m+9ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb devices -l [38;5;57m+24ms[0m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb -s emulator-5554 emu avd name [38;5;57m+8ms[0m
+  [38;5;93;1mexpo:start:server:devServer [0mRedirect page is disabled [38;5;93m+95ms[0m
+  [38;5;198;1mexpo:start:server:urlCreator [0mURL: exp://192.168.2.244:8081 [38;5;198m+2s[0m
+› Opening [4mexp://192.168.2.244:8081[24m on [1mPixel_10[22m
+  [38;5;57;1mexpo:start:platforms:android:adbServer [0m/home/d3/Android/sdk/platform-tools/adb -s emulator-5554 shell pm list packages --user 0 host.exp.exponent [38;5;57m+19ms[0m
+- Fetching Expo Go
+  [38;5;205;1mexpo:utils:downloadExpoGo [0mInstalling Expo Go version for SDK 52.0.0 at URL: https://github.com/expo/expo-go-releases/releases/download/Expo-Go-2.32.20/Expo-Go-2.32.20.apk [38;5;205m+0ms[0m
+  [38;5;205;1mexpo:utils:downloadExpoGo [0mDownloading Expo Go from "https://github.com/expo/expo-go-releases/releases/download/Expo-Go-2.32.20/Expo-Go-2.32.20.apk" to "/home/d3/.expo/android-apk-cache/Expo-Go-2.32.20.apk". [38;5;205m+0ms[0m
+  [38;5;205;1mexpo:utils:downloadExpoGo [0mThe requested copy of Expo Go might already be cached in: "/home/d3/.expo". You can disable the cache with EXPO_NO_CACHE=1 [38;5;205m+0ms[0m
+  [38;5;184;1mexpo:utils:downloadAppAsync [0mDownloading https://github.com/expo/expo-go-releases/releases/download/Expo-Go-2.32.20/Expo-Go-2.32.20.apk to /home/d3/.expo/android-apk-cache/Expo-Go-2.32.20.apk [38;5;184m+0ms[0m
+[31mTypeError: fetch failed[39m
+[90mTypeError: fetch failed[39m
+⠙[1G[0K
+Script done on 2026-06-12 16:46:59+03:00 [COMMAND_EXIT_CODE="1"]

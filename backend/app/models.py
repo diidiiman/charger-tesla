@@ -31,6 +31,8 @@ class User(Base):
     region: Mapped[str | None] = mapped_column(String(16), nullable=True)
     threshold_price: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
     currency: Mapped[str] = mapped_column(String(8), default="EUR", nullable=False)
+    vat_included: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    units: Mapped[str] = mapped_column(String(16), default="metric", nullable=False)
 
     auto_charge_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False

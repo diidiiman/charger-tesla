@@ -20,14 +20,21 @@ class UserSettings(BaseModel):
     region: str | None = None
     threshold_price: float | None = None
     currency: str = "EUR"
+    vat_included: bool = True
+    units: str = "metric"
     auto_charge_enabled: bool = False
 
 
 class UserSettingsUpdate(BaseModel):
     region: str | None = None
     threshold_price: float | None = None
+    vat_included: bool | None = None
+    units: str | None = None
     auto_charge_enabled: bool | None = None
 
+
+class AuthStartRequest(BaseModel):
+    return_url: str | None = None
 
 class AuthStartResponse(BaseModel):
     authorize_url: str

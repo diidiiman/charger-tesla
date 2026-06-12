@@ -67,3 +67,15 @@ async def verify(
         expires_at=sub.expires_at,
         platform=sub.platform,
     )
+
+@router.delete("", response_model=dict)
+async def cancel(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
+    sub = user.subscription
+    if sub:
+        await db.delete(sub)
+        user.auto_charge_enabled = False
+        await db.commit()
+    return {"ok": True}

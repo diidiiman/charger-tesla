@@ -26,7 +26,10 @@ async def _evaluate_user(session, user: User) -> None:
         return
 
     try:
-        price = await prices.current_price(user.region)
+        price_data = await prices.current_price(user.region)
+        price_val = price_data["price"]
+        if user.vat_included:
+            price_val *= prices.get_vat_multiplier(user.region)
     except Exception as e:
         log.warning("price fetch failed for user=%s: %s", user.id, e)
         return
@@ -34,17 +37,23 @@ async def _evaluate_user(session, user: User) -> None:
     try:
         token = await tesla.get_access_token(session, user)
         state = await tesla.charge_state(token, user.tesla.vehicle_id)
+    except ValueError:
+        # Vehicle is asleep, assume not charging. 
+        # (Could attempt to wake if price is cheap, but would drain battery if unplugged)
+        log.info("vehicle asleep for user=%s", user.id)
+        return
     except Exception as e:
         log.warning("charge_state failed for user=%s: %s", user.id, e)
         return
 
-    response = (state or {}).get("response") or {}
-    charging_state = response.get("charging_state")
+    resp = (state or {}).get("response") or {}
+    charge_data = resp.get("charge_state") or resp
+    charging_state = charge_data.get("charging_state")
     plugged_in = charging_state and charging_state != "Disconnected"
     currently_charging = charging_state == "Charging"
 
     threshold = float(user.threshold_price)
-    cheap = price["price"] <= threshold
+    cheap = price_val <= threshold
 
     action = "skip"
     detail = None
@@ -70,7 +79,7 @@ async def _evaluate_user(session, user: User) -> None:
         ChargeEvent(
             user_id=user.id,
             action=action,
-            price=price["price"],
+            price=price_val,
             threshold=threshold,
             detail=detail,
         )

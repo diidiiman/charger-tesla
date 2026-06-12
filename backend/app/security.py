@@ -3,6 +3,7 @@ from fastapi import Depends, Header, HTTPException, status
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .config import get_settings
 from .db import get_db
@@ -36,7 +37,11 @@ async def current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing bearer token")
     user_id = decode_session_token(authorization.split(None, 1)[1].strip())
     user = (
-        await db.execute(select(User).where(User.id == user_id))
+        await db.execute(
+            select(User)
+            .options(selectinload(User.tesla), selectinload(User.subscription))
+            .where(User.id == user_id)
+        )
     ).scalar_one_or_none()
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user not found")

@@ -9,6 +9,8 @@ export default function Settings() {
   const [regions, setRegions] = useState<Region[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [threshold, setThreshold] = useState('');
+  const [vatIncluded, setVatIncluded] = useState(true);
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -19,6 +21,8 @@ export default function Settings() {
         setRegions(r);
         setSettings(s);
         if (s.threshold_price != null) setThreshold(s.threshold_price.toString());
+        if (s.vat_included != null) setVatIncluded(s.vat_included);
+        if (s.units != null) setUnits(s.units as 'metric' | 'imperial');
       } catch (e: any) { setError(e.message); }
     })();
   }, []);
@@ -31,6 +35,8 @@ export default function Settings() {
       const updated = await api.putSettings({
         region: settings.region ?? undefined,
         threshold_price: Number.isFinite(t) ? t : undefined,
+        vat_included: vatIncluded,
+        units,
       });
       setSettings(updated);
       router.back();
@@ -86,6 +92,25 @@ export default function Settings() {
             placeholderTextColor={theme.fg.faint}
             style={styles.input}
           />
+          <Pressable onPress={() => setVatIncluded(!vatIncluded)} style={[styles.row, { marginTop: theme.space.sm, paddingVertical: theme.space.xs }]}>
+            <Body>Price includes VAT</Body>
+            <View style={[styles.checkbox, vatIncluded && styles.checkboxActive]} />
+          </Pressable>
+        </View>
+
+        <View style={[styles.card, { marginTop: theme.space.lg }]}>
+          <Label>Units</Label>
+          <View style={{ marginTop: theme.space.md }}>
+            <Pressable onPress={() => setUnits('metric')} style={styles.row}>
+              <Body style={{ fontWeight: units === 'metric' ? '600' : '400' }}>Metric (km)</Body>
+              <View style={[styles.radio, units === 'metric' && { borderColor: theme.accent, backgroundColor: theme.accent }]} />
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: theme.border.subtle }} />
+            <Pressable onPress={() => setUnits('imperial')} style={styles.row}>
+              <Body style={{ fontWeight: units === 'imperial' ? '600' : '400' }}>Imperial (mi)</Body>
+              <View style={[styles.radio, units === 'imperial' && { borderColor: theme.accent, backgroundColor: theme.accent }]} />
+            </Pressable>
+          </View>
         </View>
 
         {error && <View style={{ marginTop: theme.space.lg }}><ErrorBox>{error}</ErrorBox></View>}
@@ -120,6 +145,13 @@ const styles = StyleSheet.create({
   radio: {
     width: 18, height: 18, borderRadius: 9,
     borderWidth: 1, borderColor: theme.border.strong,
+  },
+  checkbox: {
+    width: 18, height: 18, borderRadius: 4,
+    borderWidth: 1, borderColor: theme.border.strong,
+  },
+  checkboxActive: {
+    borderColor: theme.accent, backgroundColor: theme.accent,
   },
   input: {
     marginTop: theme.space.md,

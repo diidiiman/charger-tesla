@@ -167,7 +167,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: theme.border.subtle,
-    alignSelf: 'flex-start',
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
   pillText: { fontSize: theme.size.xs, letterSpacing: 0.8, fontWeight: '500' },

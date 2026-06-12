@@ -29,6 +29,8 @@ def _user_settings(user: User) -> UserSettings:
             float(user.threshold_price) if user.threshold_price is not None else None
         ),
         currency=user.currency,
+        vat_included=user.vat_included,
+        units=user.units,
         auto_charge_enabled=user.auto_charge_enabled,
     )
 
@@ -52,6 +54,10 @@ async def update_settings(
         if body.threshold_price < 0:
             raise HTTPException(400, "threshold_price must be ≥ 0")
         user.threshold_price = body.threshold_price
+    if body.vat_included is not None:
+        user.vat_included = body.vat_included
+    if body.units is not None:
+        user.units = body.units
     if body.auto_charge_enabled is not None:
         sub = user.subscription
         if body.auto_charge_enabled and not (sub and sub.active):
@@ -68,6 +74,8 @@ async def get_price(user: User = Depends(current_user)) -> CurrentPrice:
         raise HTTPException(400, "no region selected")
     try:
         data = await prices.current_price(user.region)
+        if user.vat_included:
+            data["price"] *= prices.get_vat_multiplier(user.region)
     except Exception as e:
         raise HTTPException(502, f"price provider error: {e}") from e
     return CurrentPrice(**data)
@@ -81,23 +89,44 @@ async def dashboard(
     tesla_linked = user.tesla is not None
     vehicle = None
     charge = None
-    if tesla_linked and user.tesla.vehicle_id:
-        vehicle = {
-            "id": user.tesla.vehicle_id,
-            "vin": user.tesla.vehicle_vin,
-            "display_name": user.tesla.vehicle_display_name,
-        }
-        try:
-            token = await tesla.get_access_token(db, user)
-            data = await tesla.charge_state(token, user.tesla.vehicle_id)
-            charge = data.get("response") or data
-        except Exception as e:
-            charge = {"error": str(e)[:200], "awake": False}
+    if tesla_linked:
+        if not user.tesla.vehicle_id:
+            try:
+                token = await tesla.get_access_token(db, user)
+                vehicles = await tesla.list_vehicles(token)
+                if vehicles:
+                    v = vehicles[0]
+                    user.tesla.vehicle_id = str(v.get("id_s") or v.get("id") or "")
+                    user.tesla.vehicle_vin = v.get("vin")
+                    user.tesla.vehicle_display_name = v.get("display_name")
+                    await db.commit()
+            except Exception as e:
+                pass
+
+        if user.tesla.vehicle_id:
+            vehicle = {
+                "id": user.tesla.vehicle_id,
+                "vin": user.tesla.vehicle_vin,
+                "display_name": user.tesla.vehicle_display_name,
+            }
+            try:
+                token = await tesla.get_access_token(db, user)
+                data = await tesla.charge_state(token, user.tesla.vehicle_id)
+                # The new vehicle_data endpoint returns the state inside 'response.charge_state'
+                resp = data.get("response") or {}
+                charge = resp.get("charge_state") or resp or data
+            except ValueError:
+                charge = {"charging_state": "Asleep", "battery_level": None}
+            except Exception as e:
+                charge = {"error": str(e)[:200], "charging_state": "Unknown"}
 
     price = None
     if user.region:
         try:
-            price = CurrentPrice(**(await prices.current_price(user.region)))
+            p_data = await prices.current_price(user.region)
+            if user.vat_included:
+                p_data["price"] *= prices.get_vat_multiplier(user.region)
+            price = CurrentPrice(**p_data)
         except Exception:
             price = None
 

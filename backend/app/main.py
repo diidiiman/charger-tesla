@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
@@ -54,3 +55,8 @@ app.include_router(subscription.router)
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True}
+
+@app.get("/.well-known/appspecific/com.tesla.3p.public-key.pem")
+async def get_public_key() -> PlainTextResponse:
+    with open("com.tesla.3p.public-key.pem", "r") as f:
+        return PlainTextResponse(f.read())

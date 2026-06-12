@@ -63,6 +63,15 @@ export default function Upgrade() {
     finally { setBusy(false); }
   }
 
+  async function cancelPlan() {
+    setBusy(true); setError(null);
+    try {
+      await api.cancelSubscription();
+      setStatus({ ...(status as SubscriptionStatus), active: false });
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
   return (
     <View style={styles.root}>
       <Card>
@@ -86,7 +95,10 @@ export default function Upgrade() {
         {!status?.active ? (
           <Button title="Subscribe via App Store / Play" variant="primary" loading={busy} onPress={buy} />
         ) : (
-          <Button title="Enable auto-charging" variant="primary" loading={busy} onPress={enableAuto} />
+          <>
+            <Button title="Enable auto-charging" variant="primary" loading={busy} onPress={enableAuto} />
+            <Button title="Cancel Pro plan" variant="ghost" loading={busy} onPress={cancelPlan} />
+          </>
         )}
       </View>
     </View>

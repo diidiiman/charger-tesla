@@ -39,7 +39,7 @@ def build_authorize_url(code_challenge: str, state: str) -> str:
         "response_type": "code",
         "scope": SCOPES,
         "state": state,
-        "prompt": "login",
+        "prompt": "login consent",
     }
     return f"{s.tesla_auth_base}/oauth2/v3/authorize?{urlencode(params)}"
 
@@ -123,6 +123,10 @@ async def _api(
             headers={"authorization": f"Bearer {access_token}"},
             json=json,
         )
+    if r.status_code == 412 or r.status_code == 408:
+        if "must be registered" in r.text.lower():
+            raise RuntimeError(f"Tesla API {r.status_code} on {path}: {r.text}")
+        raise ValueError("Vehicle is asleep or offline")
     if r.status_code >= 400:
         raise RuntimeError(f"Tesla API {r.status_code} on {path}: {r.text}")
     return r.json() if r.content else {}
@@ -139,7 +143,7 @@ async def wake_up(access_token: str, vehicle_id: str) -> dict:
 
 async def charge_state(access_token: str, vehicle_id: str) -> dict:
     return await _api(
-        "GET", access_token, f"/api/1/vehicles/{vehicle_id}/data_request/charge_state"
+        "GET", access_token, f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_state"
     )
 
 

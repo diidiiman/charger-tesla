@@ -26,8 +26,9 @@ export default function Connect() {
   async function start() {
     setError(null); setBusy(true);
     try {
-      const { authorize_url } = await api.startTeslaAuth();
-      const result = await WebBrowser.openAuthSessionAsync(authorize_url, Linking.createURL('auth'));
+      const returnUrl = Linking.createURL('auth');
+      const { authorize_url } = await api.startTeslaAuth(returnUrl);
+      const result = await WebBrowser.openAuthSessionAsync(authorize_url, returnUrl);
       if (result.type === 'success' && result.url) {
         const parsed = Linking.parse(result.url);
         if ((parsed.queryParams?.ok as string) === '1') router.replace('/dashboard');

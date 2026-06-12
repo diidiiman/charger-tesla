@@ -2,25 +2,31 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import tesla
 from ..config import get_settings
 from ..db import get_db
 from ..models import OAuthState, TeslaAccount, User
-from ..schemas import AuthStartResponse
+from ..schemas import AuthStartResponse, AuthStartRequest
 from ..security import current_user
 
-router = APIRouter(prefix="/auth/tesla", tags=["tesla-oauth"])
+router = APIRouter(tags=["tesla-oauth"])
 
 
-@router.post("/start", response_model=AuthStartResponse)
+@router.post("/auth/tesla/start", response_model=AuthStartResponse)
 async def start_oauth(
+    body: AuthStartRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> AuthStartResponse:
     """Issue a PKCE pair and bind it to this user. Mobile opens the returned URL."""
-    code_verifier, code_challenge, state = tesla.make_pkce()
+    code_verifier, code_challenge, base_state = tesla.make_pkce()
+    
+    state = base_state
+    if body.return_url:
+        state = f"{base_state}|{body.return_url}"
 
     # Discard any prior in-flight states for this user, plus stale globals.
     await db.execute(delete(OAuthState).where(OAuthState.user_id == user.id))
@@ -50,13 +56,19 @@ async def callback(
     scheme = settings.mobile_deep_link_scheme
 
     if not code or not state:
-        return RedirectResponse(f"{scheme}://auth?ok=0&error=missing_code")
+        # Fallback if state is missing
+        return_url = f"{settings.mobile_deep_link_scheme}://auth"
+        return RedirectResponse(f"{return_url}?ok=0&error=missing_code", status_code=302)
+
+    return_url = f"{settings.mobile_deep_link_scheme}://auth"
+    if "|" in state:
+        _, return_url = state.split("|", 1)
 
     row = (
         await db.execute(select(OAuthState).where(OAuthState.state == state))
     ).scalar_one_or_none()
     if row is None:
-        return RedirectResponse(f"{scheme}://auth?ok=0&error=unknown_state")
+        return RedirectResponse(f"{return_url}?ok=0&error=unknown_state", status_code=302)
 
     code_verifier = row.code_verifier
     user_id = row.user_id
@@ -67,10 +79,10 @@ async def callback(
     except RuntimeError as e:
         await db.commit()
         return RedirectResponse(
-            f"{scheme}://auth?ok=0&error=exchange_failed&detail={str(e)[:64]}"
+            f"{return_url}?ok=0&error=exchange_failed&detail={str(e)[:64]}", status_code=302
         )
 
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one()
+    user = (await db.execute(select(User).options(selectinload(User.tesla)).where(User.id == user_id))).scalar_one()
     account = user.tesla or TeslaAccount(
         user_id=user.id,
         access_token_enc="",
@@ -93,10 +105,10 @@ async def callback(
         pass
 
     await db.commit()
-    return RedirectResponse(f"{scheme}://auth?ok=1")
+    return RedirectResponse(f"{return_url}?ok=1", status_code=302)
 
 
-@router.post("/unlink")
+@router.post("/auth/tesla/unlink")
 async def unlink(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),

@@ -13,6 +13,8 @@ export default function RootLayout() {
           headerTitleStyle: { color: theme.fg.primary, fontWeight: '600' },
           headerTintColor: theme.fg.primary,
           headerShadowVisible: false,
+          headerBackTitleVisible: false,
+          headerBackTitle: 'Back',
           contentStyle: { backgroundColor: theme.bg.base },
         }}
       >
@@ -20,9 +22,9 @@ export default function RootLayout() {
         <Stack.Screen name="intro" options={{ headerShown: false }} />
         <Stack.Screen name="region" options={{ title: 'Choose region' }} />
         <Stack.Screen name="connect" options={{ title: 'Connect Tesla' }} />
-        <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-        <Stack.Screen name="upgrade" options={{ title: 'Tesla Charger Pro' }} />
+        <Stack.Screen name="dashboard" options={{ headerShown: false, title: 'Back' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="upgrade" options={{ title: 'Tesla Charger Pro', headerBackTitle: 'Back' }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>

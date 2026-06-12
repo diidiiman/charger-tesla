@@ -25,7 +25,8 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser"
     ],
     "extra": {
       "apiBase": "${EXPO_PUBLIC_API_BASE}"

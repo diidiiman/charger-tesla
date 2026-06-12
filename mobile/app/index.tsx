@@ -31,7 +31,11 @@ export default function Entry() {
         if (!dash.tesla_linked) { setNext('/connect'); return; }
 
         setNext('/dashboard');
-      } catch (e) {
+      } catch (e: any) {
+        if (e.status === 401 && String(e.message).toLowerCase().includes('user not found')) {
+          console.warn('user not found on backend, will re-register on next mount');
+          return; // api.ts handles clearing session and router.replace('/')
+        }
         // Fall back to intro on any bootstrap failure.
         console.warn('bootstrap failed', e);
         setNext('/intro');

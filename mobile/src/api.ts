@@ -1,10 +1,13 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { session } from './storage';
 
 const BASE: string =
   (process.env.EXPO_PUBLIC_API_BASE as string | undefined) ||
   (Constants.expoConfig?.extra?.apiBase as string | undefined) ||
   'https://charging.clankersystems.com';
+
+console.log('API BASE URL:', BASE);
 
 async function req<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
@@ -21,7 +24,12 @@ async function req<T>(method: string, path: string, body?: unknown, auth = true)
   let json: any;
   try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
   if (!res.ok) {
-    const err = new Error(json?.detail || json?.error || `request failed: ${res.status}`);
+    const detailText = json?.detail || json?.error || `request failed: ${res.status}`;
+    if (res.status === 401 && String(detailText).toLowerCase().includes('user not found')) {
+      await session.clear();
+      router.replace('/');
+    }
+    const err = new Error(detailText);
     (err as any).status = res.status;
     throw err;
   }
@@ -34,6 +42,8 @@ export type UserSettings = {
   region: string | null;
   threshold_price: number | null;
   currency: string;
+  vat_included: boolean;
+  units: string;
   auto_charge_enabled: boolean;
 };
 
@@ -72,7 +82,7 @@ export const api = {
   putSettings: (patch: Partial<UserSettings>) => req<UserSettings>('PUT', '/v1/settings', patch),
   getPrice: () => req<CurrentPrice>('GET', '/v1/price'),
   dashboard: () => req<Dashboard>('GET', '/v1/dashboard'),
-  startTeslaAuth: () => req<{ authorize_url: string }>('POST', '/auth/tesla/start'),
+  startTeslaAuth: (return_url?: string) => req<{ authorize_url: string }>('POST', '/auth/tesla/start', { return_url }),
   unlinkTesla: () => req<{ ok: boolean }>('POST', '/auth/tesla/unlink'),
   chargeStart: () => req<any>('POST', '/v1/charge/start'),
   chargeStop: () => req<any>('POST', '/v1/charge/stop'),
@@ -80,4 +90,5 @@ export const api = {
   subscriptionStatus: () => req<SubscriptionStatus>('GET', '/v1/subscription'),
   verifySubscription: (payload: { platform: 'ios' | 'android'; product_id: string; receipt: string }) =>
     req<SubscriptionStatus>('POST', '/v1/subscription/verify', payload),
+  cancelSubscription: () => req<{ ok: boolean }>('DELETE', '/v1/subscription'),
 };

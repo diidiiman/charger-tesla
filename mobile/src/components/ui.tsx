@@ -106,7 +106,7 @@ export function ProgressBar({ value, charging }: { value: number; charging?: boo
         style={{
           width: `${pct}%`,
           height: '100%',
-          backgroundColor: charging ? theme.ok : theme.accent,
+          backgroundColor: charging ? theme.ok : theme.fg.faint,
         }}
       />
     </View>

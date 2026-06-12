@@ -32,6 +32,9 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [startBusy, setStartBusy] = useState(false);
+  const [stopBusy, setStopBusy] = useState(false);
+  const [refreshBusy, setRefreshBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -43,11 +46,15 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function run(fn: () => Promise<any>) {
+  async function run(fn: () => Promise<any>, setSpinner?: (v: boolean) => void) {
+    if (setSpinner) setSpinner(true);
     setBusy(true);
     try { await fn(); await load(); }
     catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
+    finally { 
+      if (setSpinner) setSpinner(false);
+      setBusy(false); 
+    }
   }
 
   async function onRefresh() {
@@ -179,18 +186,20 @@ export default function Dashboard() {
                 style={{ flex: 1 }}
                 title="Start charging"
                 variant="primary"
+                loading={startBusy}
                 disabled={busy || !plugged || charging}
-                onPress={() => run(api.chargeStart)}
+                onPress={() => run(api.chargeStart, setStartBusy)}
               />
               <Button
                 style={{ flex: 1 }}
                 title="Stop charging"
+                loading={stopBusy}
                 disabled={busy || !charging}
-                onPress={() => run(api.chargeStop)}
+                onPress={() => run(api.chargeStop, setStopBusy)}
               />
             </View>
             <View style={{ marginTop: theme.space.sm }}>
-              <Button style={{ width: '100%' }} title="Refresh" variant="ghost" onPress={() => run(load)} disabled={busy} />
+              <Button style={{ width: '100%' }} title="Refresh" variant="ghost" loading={refreshBusy} onPress={() => run(load, setRefreshBusy)} disabled={busy} />
             </View>
           </Card>
         )}

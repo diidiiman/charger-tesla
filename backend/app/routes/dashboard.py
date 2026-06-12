@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -149,7 +150,21 @@ async def charge_start(
     if user.tesla is None or not user.tesla.vehicle_id:
         raise HTTPException(400, "no Tesla vehicle linked")
     token = await tesla.get_access_token(db, user)
-    return await tesla.charge_start(token, user.tesla.vehicle_id)
+    res = await tesla.charge_start(token, user.tesla.vehicle_id)
+    
+    # Poll for up to 30 seconds to wait for state transition
+    for _ in range(6):
+        await asyncio.sleep(5)
+        try:
+            state_data = await tesla.charge_state(token, user.tesla.vehicle_id)
+            resp = state_data.get("response") or {}
+            charge = resp.get("charge_state") or resp or state_data
+            if charge.get("charging_state") in ("Charging", "Starting", "Preparing"):
+                break
+        except Exception:
+            pass
+            
+    return res
 
 
 @router.post("/charge/stop")
@@ -160,7 +175,21 @@ async def charge_stop(
     if user.tesla is None or not user.tesla.vehicle_id:
         raise HTTPException(400, "no Tesla vehicle linked")
     token = await tesla.get_access_token(db, user)
-    return await tesla.charge_stop(token, user.tesla.vehicle_id)
+    res = await tesla.charge_stop(token, user.tesla.vehicle_id)
+    
+    # Poll for up to 30 seconds to wait for state transition
+    for _ in range(6):
+        await asyncio.sleep(5)
+        try:
+            state_data = await tesla.charge_state(token, user.tesla.vehicle_id)
+            resp = state_data.get("response") or {}
+            charge = resp.get("charge_state") or resp or state_data
+            if charge.get("charging_state") == "Stopped":
+                break
+        except Exception:
+            pass
+            
+    return res
 
 
 @router.post("/charge/wake")

@@ -8,7 +8,7 @@ import { theme } from '../src/theme';
  * Upgrade screen.
  *
  * This screen presents the Pro tier and triggers an in-app purchase via
- * `expo-in-app-purchases`. To keep the scaffold runnable on Expo Go (which
+ * `react-native-iap`. To keep the scaffold runnable on Expo Go (which
  * doesn't support native IAP), the purchase call is wrapped in a try/catch
  * that falls back to a "manual receipt" prompt — in a real build (EAS dev
  * client or production), the native IAP path is taken.
@@ -29,14 +29,13 @@ export default function Upgrade() {
     setError(null); setBusy(true);
     try {
       // Lazy-import so Expo Go doesn't crash on missing native module.
-      const IAP = await import('expo-in-app-purchases').catch(() => null);
-      let receipt: string;
+      const IAP = await import('react-native-iap').catch(() => null);
+      let receipt: string = '';
       let product_id = 'charging_pro_monthly';
-      if (IAP && typeof IAP.connectAsync === 'function') {
-        await IAP.connectAsync();
-        await IAP.getProductsAsync([product_id]);
-        const result = await IAP.purchaseItemAsync(product_id);
-        const purchase = (result as any)?.results?.[0];
+      if (IAP && typeof IAP.initConnection === 'function') {
+        await IAP.initConnection();
+        await IAP.getSubscriptions({ skus: [product_id] });
+        const purchase = await IAP.requestSubscription({ sku: product_id });
         receipt = purchase?.transactionReceipt || purchase?.purchaseToken || '';
         if (!receipt) throw new Error('purchase did not return a receipt');
       } else {
@@ -44,6 +43,33 @@ export default function Upgrade() {
         receipt = `stub-${Date.now()}`;
       }
 
+      const verified = await api.verifySubscription({
+        platform: Platform.OS === 'ios' ? 'ios' : 'android',
+        product_id,
+        receipt,
+      });
+      setStatus(verified);
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function restore() {
+    setError(null); setBusy(true);
+    try {
+      const IAP = await import('react-native-iap').catch(() => null);
+      let receipt: string = '';
+      let product_id = 'charging_pro_monthly';
+      
+      if (IAP && typeof IAP.initConnection === 'function') {
+        await IAP.initConnection();
+        const purchases = await IAP.getAvailablePurchases();
+        const validPurchase = purchases.find((p: any) => p.productId === product_id);
+        receipt = validPurchase?.transactionReceipt || validPurchase?.purchaseToken || '';
+        if (!receipt) throw new Error('No active subscription found to restore.');
+      } else {
+        receipt = `stub-restore-${Date.now()}`;
+      }
+      
       const verified = await api.verifySubscription({
         platform: Platform.OS === 'ios' ? 'ios' : 'android',
         product_id,
@@ -93,7 +119,10 @@ export default function Upgrade() {
 
       <View style={{ marginTop: theme.space.lg, gap: theme.space.sm }}>
         {!status?.active ? (
-          <Button title="Subscribe via App Store / Play" variant="primary" loading={busy} onPress={buy} />
+          <>
+            <Button title="Subscribe via App Store / Play" variant="primary" loading={busy} onPress={buy} />
+            <Button title="Restore purchases" variant="ghost" loading={busy} onPress={restore} />
+          </>
         ) : (
           <>
             <Button title="Enable auto-charging" variant="primary" loading={busy} onPress={enableAuto} />

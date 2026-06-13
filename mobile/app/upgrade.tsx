@@ -105,11 +105,11 @@ export default function Upgrade() {
           <Label>Tesla Charger Pro</Label>
           <Pill tone={status?.active ? 'ok' : undefined} label={status?.active ? 'Active' : 'Inactive'} />
         </View>
-        <H1 style={{ marginTop: theme.space.md }}>€4 / month</H1>
+        <H1 style={{ marginTop: theme.space.md }}>€5 / month</H1>
         <Body muted style={{ marginTop: theme.space.md }}>
           With Pro, the app watches the price for your region and automatically starts and stops your
           Tesla’s charging session whenever the price crosses your threshold. Cancel any time from the
-          App Store or Play Store.
+          {Platform.OS === 'ios' ? ' App Store' : ' Play Store'}.
         </Body>
       </Card>
 
@@ -120,7 +120,7 @@ export default function Upgrade() {
       <View style={{ marginTop: theme.space.lg, gap: theme.space.sm }}>
         {!status?.active ? (
           <>
-            <Button title="Subscribe via App Store / Play" variant="primary" loading={busy} onPress={buy} />
+            <Button title={`Subscribe via ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}`} variant="primary" loading={busy} onPress={buy} />
             <Button title="Restore purchases" variant="ghost" loading={busy} onPress={restore} />
           </>
         ) : (

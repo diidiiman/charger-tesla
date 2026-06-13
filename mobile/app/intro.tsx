@@ -6,6 +6,7 @@ import {
   View,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -38,7 +39,7 @@ const SLIDES: Slide[] = [
     label: 'Pro',
     title: 'Optional: hands-free.',
     body:
-      'Upgrade to Pro (€4 / month, via the App Store or Play Store) and the app starts and stops charging for you whenever the price crosses your threshold.',
+      `Upgrade to Pro (€5 / month, via the ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}) and the app starts and stops charging for you whenever the price crosses your threshold.`,
   },
 ];
 

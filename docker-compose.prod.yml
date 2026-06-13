@@ -1,0 +1,49 @@
+name: teslacharger-prod
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    volumes:
+      - ./telemetry/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  fleet-telemetry:
+    image: tesla/fleet-telemetry:latest
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+    volumes:
+      - ./telemetry/server_config.json:/etc/fleet-telemetry/config.json:ro
+      - ./telemetry/certs:/etc/fleet-telemetry/certs:ro
+    depends_on:
+      - mqtt
+    command: ["/fleet-telemetry", "-config=/etc/fleet-telemetry/config.json"]
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      mqtt:
+        condition: service_started
+    volumes:
+      - ./backend/com.tesla.3p.public-key.pem:/app/com.tesla.3p.public-key.pem:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+
+volumes:
+  caddy_data:
+  caddy_config:

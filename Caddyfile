@@ -1,0 +1,3 @@
+api.charging.clankersystems.com {
+    reverse_proxy backend:8000
+}

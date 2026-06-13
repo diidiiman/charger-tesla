@@ -58,7 +58,7 @@ export default function Intro() {
       ref.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
       await introSeen.mark();
-      router.replace('/region');
+      router.replace('/login');
     }
   }
 

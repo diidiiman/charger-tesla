@@ -141,16 +141,17 @@ export default function Dashboard() {
             </View>
           </Card>
         ) : (
-          <Card>
-            <View style={styles.row}>
-              <View>
-                <Label>Vehicle</Label>
-                <Body style={{ fontSize: theme.size.lg, fontWeight: '600', marginTop: 2 }}>
-                  {data?.vehicle?.display_name ?? 'Tesla'}
-                </Body>
+          <Card style={{ padding: 0 }}>
+            <View style={{ padding: theme.space['2xl'] }}>
+              <View style={styles.row}>
+                <View style={{ flex: 1, paddingRight: theme.space.md }}>
+                  <Label>Vehicle</Label>
+                  <Body numberOfLines={1} style={{ fontSize: theme.size.lg, fontWeight: '600', marginTop: 2 }}>
+                    {data?.vehicle?.display_name ?? 'Tesla'}
+                  </Body>
+                </View>
+                <Pill tone={chargingTone(chargingState)} label={chargingState ?? 'Unknown'} />
               </View>
-              <Pill tone={chargingTone(chargingState)} label={chargingState ?? 'Unknown'} />
-            </View>
 
             {typeof charge.battery_level === 'number' && (
               <View style={{ marginTop: theme.space.lg, gap: theme.space.sm }}>
@@ -179,29 +180,67 @@ export default function Dashboard() {
               )}
             </View>
 
-            <Divider />
+          <Divider />
 
-            <View style={{ flexDirection: 'row', gap: theme.space.sm }}>
-              <Button
-                style={{ flex: 1 }}
-                title="Start charging"
-                variant="primary"
-                loading={startBusy}
-                disabled={busy || !plugged || charging}
-                onPress={() => run(api.chargeStart, setStartBusy)}
-              />
-              <Button
-                style={{ flex: 1 }}
-                title="Stop charging"
-                loading={stopBusy}
-                disabled={busy || !charging}
-                onPress={() => run(api.chargeStop, setStopBusy)}
-              />
-            </View>
-            <View style={{ marginTop: theme.space.sm }}>
-              <Button style={{ width: '100%' }} title="Refresh" variant="ghost" loading={refreshBusy} onPress={() => run(load, setRefreshBusy)} disabled={busy} />
-            </View>
-          </Card>
+          {data?.vehicle?.is_at_home ? (
+            <>
+              <View style={{ flexDirection: 'row', gap: theme.space.sm }}>
+                <Button
+                  style={{ flex: 1 }}
+                  title="Start charging"
+                  variant="primary"
+                  loading={startBusy}
+                  disabled={busy || !plugged || charging}
+                  onPress={() => run(api.chargeStart, setStartBusy)}
+                />
+                <Button
+                  style={{ flex: 1 }}
+                  title="Stop charging"
+                  loading={stopBusy}
+                  disabled={busy || !charging}
+                  onPress={() => run(api.chargeStop, setStopBusy)}
+                />
+              </View>
+              <View style={{ marginTop: theme.space.sm }}>
+                <Button style={{ width: '100%' }} title="Refresh" variant="ghost" loading={refreshBusy} onPress={() => run(load, setRefreshBusy)} disabled={busy} />
+              </View>
+            </>
+          ) : (
+            <>
+              {data?.vehicle?.location ? (
+                <View style={{ flexDirection: 'row', gap: theme.space.sm }}>
+                  <Button 
+                    style={{ flex: 1 }} 
+                    title="Mark as home location" 
+                    variant="primary" 
+                    disabled={busy}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        await api.putSettings({ 
+                          home_latitude: data.vehicle!.location!.latitude,
+                          home_longitude: data.vehicle!.location!.longitude
+                        });
+                        await load();
+                      } catch (e: any) { setError(e.message); }
+                      finally { setBusy(false); }
+                    }} 
+                  />
+                </View>
+              ) : (
+                <View style={{ padding: theme.space.md, backgroundColor: theme.bg.input, borderRadius: theme.radius.sm }}>
+                  <Body muted style={{ textAlign: 'center', fontSize: theme.size.sm }}>
+                    Location unavailable. Pull to refresh to mark as home.
+                  </Body>
+                </View>
+              )}
+              <View style={{ marginTop: theme.space.sm }}>
+                <Button style={{ width: '100%' }} title="Refresh" variant="ghost" loading={refreshBusy} onPress={() => run(load, setRefreshBusy)} disabled={busy} />
+              </View>
+            </>
+          )}
+          </View>
+        </Card>
         )}
 
         <View style={{ flexDirection: 'row', gap: theme.space.sm }}>

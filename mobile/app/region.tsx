@@ -42,7 +42,7 @@ export default function RegionPicker() {
     try {
       const t = parseFloat(threshold);
       await api.putSettings({ region: selected, threshold_price: Number.isFinite(t) ? t : undefined, vat_included: vatIncluded, units });
-      router.replace('/connect');
+      router.replace('/notifications');
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   }

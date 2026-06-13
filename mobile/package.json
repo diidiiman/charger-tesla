@@ -11,14 +11,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "expo": "^54.0.35",
+    "expo-apple-authentication": "~8.0.8",
     "expo-application": "~7.0.8",
     "expo-asset": "~12.0.13",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
+    "expo-device": "~8.0.10",
     "expo-in-app-purchases": "^14.5.0",
     "expo-linking": "~8.0.12",
+    "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",

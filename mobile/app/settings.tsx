@@ -10,6 +10,7 @@ export default function Settings() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [threshold, setThreshold] = useState('');
   const [vatIncluded, setVatIncluded] = useState(true);
+  const [priceChangeReminder, setPriceChangeReminder] = useState(true);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -22,6 +23,7 @@ export default function Settings() {
         setSettings(s);
         if (s.threshold_price != null) setThreshold(s.threshold_price.toString());
         if (s.vat_included != null) setVatIncluded(s.vat_included);
+        if (s.price_change_reminder != null) setPriceChangeReminder(s.price_change_reminder);
         if (s.units != null) setUnits(s.units as 'metric' | 'imperial');
       } catch (e: any) { setError(e.message); }
     })();
@@ -36,6 +38,7 @@ export default function Settings() {
         region: settings.region ?? undefined,
         threshold_price: Number.isFinite(t) ? t : undefined,
         vat_included: vatIncluded,
+        price_change_reminder: priceChangeReminder,
         units,
       });
       setSettings(updated);
@@ -96,6 +99,16 @@ export default function Settings() {
             <Body>Price includes VAT</Body>
             <View style={[styles.checkbox, vatIncluded && styles.checkboxActive]} />
           </Pressable>
+        </View>
+
+        <View style={[styles.card, { marginTop: theme.space.lg }]}>
+          <Label>Notifications</Label>
+          <View style={{ marginTop: theme.space.md }}>
+            <Pressable onPress={() => setPriceChangeReminder(!priceChangeReminder)} style={[styles.row, { paddingVertical: theme.space.xs }]}>
+              <Body>Price change charging reminder</Body>
+              <View style={[styles.checkbox, priceChangeReminder && styles.checkboxActive]} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>

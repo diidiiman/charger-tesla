@@ -44,6 +44,10 @@ export type UserSettings = {
   currency: string;
   vat_included: boolean;
   units: string;
+  home_latitude: number | null;
+  home_longitude: number | null;
+  push_token: string | null;
+  price_change_reminder: boolean;
   auto_charge_enabled: boolean;
 };
 
@@ -60,7 +64,7 @@ export type CurrentPrice = {
 export type Dashboard = {
   settings: UserSettings;
   tesla_linked: boolean;
-  vehicle: { id: string; vin: string | null; display_name: string | null } | null;
+  vehicle: { id: string; vin: string | null; display_name: string | null; location?: { latitude: number; longitude: number }; is_at_home?: boolean } | null;
   price: CurrentPrice | null;
   charge: Record<string, any> | null;
   subscription_active: boolean;
@@ -77,6 +81,10 @@ export const api = {
   base: BASE,
   registerDevice: (device_id: string) =>
     req<{ token: string; user_id: number }>('POST', '/v1/auth/device', { device_id }, false),
+  authGoogle: (id_token: string, device_id?: string) =>
+    req<{ token: string; user_id: number }>('POST', '/v1/auth/google', { id_token, device_id }, false),
+  authApple: (id_token: string, device_id?: string) =>
+    req<{ token: string; user_id: number }>('POST', '/v1/auth/apple', { id_token, device_id }, false),
   regions: () => req<Region[]>('GET', '/v1/regions'),
   getSettings: () => req<UserSettings>('GET', '/v1/settings'),
   putSettings: (patch: Partial<UserSettings>) => req<UserSettings>('PUT', '/v1/settings', patch),

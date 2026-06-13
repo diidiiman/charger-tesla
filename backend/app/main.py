@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
 from .routes import auth, dashboard, subscription, tesla_oauth
-from .scheduler import run_forever
+from .scheduler import run_forever, fetch_daily_prices_forever
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -18,13 +18,15 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     await init_db()
     task = asyncio.create_task(run_forever(), name="auto-charge-scheduler")
+    price_task = asyncio.create_task(fetch_daily_prices_forever(), name="price-fetcher-scheduler")
     try:
         yield
     finally:
         task.cancel()
+        price_task.cancel()
         try:
-            await task
-        except (asyncio.CancelledError, Exception):
+            await asyncio.gather(task, price_task, return_exceptions=True)
+        except Exception:
             pass
 
 

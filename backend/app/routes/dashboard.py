@@ -32,6 +32,10 @@ def _user_settings(user: User) -> UserSettings:
         currency=user.currency,
         vat_included=user.vat_included,
         units=user.units,
+        home_latitude=user.home_latitude,
+        home_longitude=user.home_longitude,
+        push_token=user.push_token,
+        price_change_reminder=user.price_change_reminder,
         auto_charge_enabled=user.auto_charge_enabled,
     )
 
@@ -59,6 +63,14 @@ async def update_settings(
         user.vat_included = body.vat_included
     if body.units is not None:
         user.units = body.units
+    if body.home_latitude is not None:
+        user.home_latitude = body.home_latitude
+    if body.home_longitude is not None:
+        user.home_longitude = body.home_longitude
+    if body.push_token is not None:
+        user.push_token = body.push_token
+    if body.price_change_reminder is not None:
+        user.price_change_reminder = body.price_change_reminder
     if body.auto_charge_enabled is not None:
         sub = user.subscription
         if body.auto_charge_enabled and not (sub and sub.active):
@@ -112,14 +124,42 @@ async def dashboard(
             }
             try:
                 token = await tesla.get_access_token(db, user)
-                data = await tesla.charge_state(token, user.tesla.vehicle_id)
-                # The new vehicle_data endpoint returns the state inside 'response.charge_state'
+                
+                async def fetch_data():
+                    try:
+                        return await tesla.vehicle_data(token, user.tesla.vehicle_id)
+                    except ValueError:
+                        # Asleep or offline. Try to wake.
+                        await tesla.wake_up(token, user.tesla.vehicle_id)
+                        for _ in range(6):
+                            await asyncio.sleep(5)
+                            try:
+                                return await tesla.vehicle_data(token, user.tesla.vehicle_id)
+                            except ValueError:
+                                pass
+                        raise ValueError("Vehicle is asleep or offline")
+
+                data = await fetch_data()
                 resp = data.get("response") or {}
                 charge = resp.get("charge_state") or resp or data
+                location = resp.get("drive_state")
+                if location and "latitude" in location and "longitude" in location:
+                    vehicle["location"] = {
+                        "latitude": location["latitude"],
+                        "longitude": location["longitude"],
+                    }
             except ValueError:
                 charge = {"charging_state": "Asleep", "battery_level": None}
             except Exception as e:
                 charge = {"error": str(e)[:200], "charging_state": "Unknown"}
+            
+            vehicle["is_at_home"] = False
+            if "location" in vehicle and user.home_latitude is not None and user.home_longitude is not None:
+                import math
+                lat_diff = (vehicle["location"]["latitude"] - float(user.home_latitude)) * 111000
+                lon_diff = (vehicle["location"]["longitude"] - float(user.home_longitude)) * 111000 * math.cos(math.radians(float(user.home_latitude)))
+                distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
+                vehicle["is_at_home"] = distance_meters <= 200
 
     price = None
     if user.region:
@@ -150,13 +190,27 @@ async def charge_start(
     if user.tesla is None or not user.tesla.vehicle_id:
         raise HTTPException(400, "no Tesla vehicle linked")
     token = await tesla.get_access_token(db, user)
-    res = await tesla.charge_start(token, user.tesla.vehicle_id)
+
+    async def execute_start():
+        try:
+            return await tesla.charge_start(token, user.tesla.vehicle_id)
+        except ValueError:
+            await tesla.wake_up(token, user.tesla.vehicle_id)
+            for _ in range(6):
+                await asyncio.sleep(5)
+                try:
+                    return await tesla.charge_start(token, user.tesla.vehicle_id)
+                except ValueError:
+                    pass
+            raise ValueError("Vehicle is asleep or offline")
+
+    res = await execute_start()
     
     # Poll for up to 30 seconds to wait for state transition
     for _ in range(6):
         await asyncio.sleep(5)
         try:
-            state_data = await tesla.charge_state(token, user.tesla.vehicle_id)
+            state_data = await tesla.vehicle_data(token, user.tesla.vehicle_id)
             resp = state_data.get("response") or {}
             charge = resp.get("charge_state") or resp or state_data
             if charge.get("charging_state") in ("Charging", "Starting", "Preparing"):
@@ -175,13 +229,27 @@ async def charge_stop(
     if user.tesla is None or not user.tesla.vehicle_id:
         raise HTTPException(400, "no Tesla vehicle linked")
     token = await tesla.get_access_token(db, user)
-    res = await tesla.charge_stop(token, user.tesla.vehicle_id)
+
+    async def execute_stop():
+        try:
+            return await tesla.charge_stop(token, user.tesla.vehicle_id)
+        except ValueError:
+            await tesla.wake_up(token, user.tesla.vehicle_id)
+            for _ in range(6):
+                await asyncio.sleep(5)
+                try:
+                    return await tesla.charge_stop(token, user.tesla.vehicle_id)
+                except ValueError:
+                    pass
+            raise ValueError("Vehicle is asleep or offline")
+
+    res = await execute_stop()
     
     # Poll for up to 30 seconds to wait for state transition
     for _ in range(6):
         await asyncio.sleep(5)
         try:
-            state_data = await tesla.charge_state(token, user.tesla.vehicle_id)
+            state_data = await tesla.vehicle_data(token, user.tesla.vehicle_id)
             resp = state_data.get("response") or {}
             charge = resp.get("charge_state") or resp or state_data
             if charge.get("charging_state") == "Stopped":
@@ -200,4 +268,18 @@ async def charge_wake(
     if user.tesla is None or not user.tesla.vehicle_id:
         raise HTTPException(400, "no Tesla vehicle linked")
     token = await tesla.get_access_token(db, user)
-    return await tesla.wake_up(token, user.tesla.vehicle_id)
+    res = await tesla.wake_up(token, user.tesla.vehicle_id)
+
+    # Poll for up to 30 seconds to wait for the vehicle to wake up
+    for _ in range(6):
+        await asyncio.sleep(5)
+        try:
+            state_data = await tesla.vehicle_data(token, user.tesla.vehicle_id)
+            resp = state_data.get("response") or {}
+            charge = resp.get("charge_state") or resp or state_data
+            if charge.get("charging_state") not in ("Unknown", "Asleep", None):
+                break
+        except Exception:
+            pass
+
+    return res

@@ -20,7 +20,7 @@ async def main():
             "client_id": CLIENT_ID,
             "client_secret": CLIENT_SECRET,
             "audience": AUDIENCE,
-            "scope": "openid vehicle_device_data vehicle_cmds vehicle_charging_cmds",
+            "scope": "openid vehicle_device_data vehicle_location vehicle_cmds vehicle_charging_cmds",
         }
         res = await client.post(AUTH_URL, data=data)
         if res.status_code >= 400:

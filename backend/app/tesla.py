@@ -13,7 +13,7 @@ from .config import get_settings
 from .crypto import decrypt, encrypt
 from .models import TeslaAccount, User
 
-SCOPES = "openid offline_access vehicle_device_data vehicle_charging_cmds vehicle_cmds"
+SCOPES = "openid offline_access vehicle_device_data vehicle_location vehicle_charging_cmds vehicle_cmds"
 
 
 def _b64url(b: bytes) -> str:
@@ -141,9 +141,9 @@ async def wake_up(access_token: str, vehicle_id: str) -> dict:
     return await _api("POST", access_token, f"/api/1/vehicles/{vehicle_id}/wake_up")
 
 
-async def charge_state(access_token: str, vehicle_id: str) -> dict:
+async def vehicle_data(access_token: str, vehicle_id: str) -> dict:
     return await _api(
-        "GET", access_token, f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_state"
+        "GET", access_token, f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_state%3Blocation_data"
     )
 
 

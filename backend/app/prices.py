@@ -11,10 +11,14 @@ covers the same Northern-European market. Replace this provider if you have
 access to a different upstream.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
 from .config import get_settings
+from .models import RegionPrice
 
 # Nord Pool delivery areas exposed to the mobile app.
 REGIONS: list[dict] = [
@@ -41,9 +45,11 @@ def list_regions() -> list[dict]:
     return REGIONS
 
 
-async def _nordpool_current(region: str) -> dict:
+async def _nordpool_current(region: str, dt: datetime = None) -> dict:
     settings = get_settings()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    today = dt.strftime("%Y-%m-%d")
     url = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
     params = {
         "date": today,
@@ -57,14 +63,13 @@ async def _nordpool_current(region: str) -> dict:
         raise RuntimeError(f"Nord Pool {r.status_code}: {r.text}")
     payload = r.json()
 
-    now = datetime.now(timezone.utc)
     # The dataportal response shape: multiAreaEntries: [{ deliveryStart, deliveryEnd, entryPerArea: { NO1: 12.34, ... } }]
     entries = payload.get("multiAreaEntries") or payload.get("entries") or []
     current = None
     for e in entries:
         start = datetime.fromisoformat(e["deliveryStart"].replace("Z", "+00:00"))
         end = datetime.fromisoformat(e["deliveryEnd"].replace("Z", "+00:00"))
-        if start <= now < end:
+        if start <= dt < end:
             per_area = e.get("entryPerArea") or e.get("perArea") or {}
             price = per_area.get(region)
             if price is None and "value" in e:
@@ -106,10 +111,74 @@ def get_vat_multiplier(region: str) -> float:
     return VAT_RATES.get(country, 1.0)
 
 
-async def current_price(region: str) -> dict:
+async def current_price(region: str, dt: datetime = None) -> dict:
     if region not in VALID_REGION_CODES:
         raise ValueError(f"unknown region '{region}'")
     provider = get_settings().price_provider.lower()
     if provider == "nordpool":
-        return await _nordpool_current(region)
+        return await _nordpool_current(region, dt)
     raise RuntimeError(f"unknown PRICE_PROVIDER '{provider}'")
+
+
+async def fetch_and_store_prices(db: AsyncSession, target_date: datetime):
+    """Fetches day-ahead prices for all regions for the target date and stores them in the database."""
+    settings = get_settings()
+    date_str = target_date.strftime("%Y-%m-%d")
+    url = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for region in VALID_REGION_CODES:
+            params = {
+                "date": date_str,
+                "market": "DayAhead",
+                "deliveryArea": region,
+                "currency": settings.price_currency,
+            }
+            try:
+                r = await client.get(url, params=params, headers={"accept": "application/json"})
+                if r.status_code >= 400:
+                    print(f"Failed to fetch prices for {region} on {date_str}: {r.status_code}")
+                    continue
+                
+                payload = r.json()
+                entries = payload.get("multiAreaEntries") or payload.get("entries") or []
+                
+                records = []
+                for e in entries:
+                    start = datetime.fromisoformat(e["deliveryStart"].replace("Z", "+00:00"))
+                    end = datetime.fromisoformat(e["deliveryEnd"].replace("Z", "+00:00"))
+                    
+                    per_area = e.get("entryPerArea") or e.get("perArea") or {}
+                    price = per_area.get(region)
+                    if price is None and "value" in e:
+                        price = e["value"]
+                        
+                    if price is not None:
+                        price_per_kwh = float(price) / 1000.0
+                        price_with_vat = price_per_kwh * get_vat_multiplier(region)
+                        records.append({
+                            "region": region,
+                            "price": price_per_kwh,
+                            "price_with_vat": price_with_vat,
+                            "valid_from": start,
+                            "valid_to": end,
+                        })
+                
+                if records:
+                    stmt = insert(RegionPrice).values(records)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=["region", "valid_from"],
+                        set_={
+                            "price": stmt.excluded.price, 
+                            "price_with_vat": stmt.excluded.price_with_vat,
+                            "valid_to": stmt.excluded.valid_to
+                        }
+                    )
+                    await db.execute(stmt)
+                    await db.commit()
+                    
+            except Exception as e:
+                print(f"Error fetching/storing prices for {region}: {e}")
+            
+            # Small delay to be polite to the API
+            await asyncio.sleep(0.5)

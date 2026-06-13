@@ -96,15 +96,17 @@ async def _nordpool_current(region: str, dt: datetime = None) -> dict:
         "provider": "nordpool",
     }
 
+
 VAT_RATES = {
     "NO": 1.25,
     "SE": 1.25,
     "DK": 1.25,
-    "FI": 1.255, # 25.5% since Sep 2024
+    "FI": 1.255,  # 25.5% since Sep 2024
     "EE": 1.22,
     "LV": 1.21,
     "LT": 1.21,
 }
+
 
 def get_vat_multiplier(region: str) -> float:
     country = region[:2]
@@ -125,7 +127,7 @@ async def fetch_and_store_prices(db: AsyncSession, target_date: datetime):
     settings = get_settings()
     date_str = target_date.strftime("%Y-%m-%d")
     url = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
-    
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         for region in VALID_REGION_CODES:
             params = {
@@ -135,50 +137,62 @@ async def fetch_and_store_prices(db: AsyncSession, target_date: datetime):
                 "currency": settings.price_currency,
             }
             try:
-                r = await client.get(url, params=params, headers={"accept": "application/json"})
+                r = await client.get(
+                    url, params=params, headers={"accept": "application/json"}
+                )
                 if r.status_code >= 400:
-                    print(f"Failed to fetch prices for {region} on {date_str}: {r.status_code}")
+                    print(
+                        f"Failed to fetch prices for {region} on {date_str}: {r.status_code}"
+                    )
                     continue
-                
+
                 payload = r.json()
-                entries = payload.get("multiAreaEntries") or payload.get("entries") or []
-                
+                entries = (
+                    payload.get("multiAreaEntries") or payload.get("entries") or []
+                )
+
                 records = []
                 for e in entries:
-                    start = datetime.fromisoformat(e["deliveryStart"].replace("Z", "+00:00"))
-                    end = datetime.fromisoformat(e["deliveryEnd"].replace("Z", "+00:00"))
-                    
+                    start = datetime.fromisoformat(
+                        e["deliveryStart"].replace("Z", "+00:00")
+                    )
+                    end = datetime.fromisoformat(
+                        e["deliveryEnd"].replace("Z", "+00:00")
+                    )
+
                     per_area = e.get("entryPerArea") or e.get("perArea") or {}
                     price = per_area.get(region)
                     if price is None and "value" in e:
                         price = e["value"]
-                        
+
                     if price is not None:
                         price_per_kwh = float(price) / 1000.0
                         price_with_vat = price_per_kwh * get_vat_multiplier(region)
-                        records.append({
-                            "region": region,
-                            "price": price_per_kwh,
-                            "price_with_vat": price_with_vat,
-                            "valid_from": start,
-                            "valid_to": end,
-                        })
-                
+                        records.append(
+                            {
+                                "region": region,
+                                "price": price_per_kwh,
+                                "price_with_vat": price_with_vat,
+                                "valid_from": start,
+                                "valid_to": end,
+                            }
+                        )
+
                 if records:
                     stmt = insert(RegionPrice).values(records)
                     stmt = stmt.on_conflict_do_update(
                         index_elements=["region", "valid_from"],
                         set_={
-                            "price": stmt.excluded.price, 
+                            "price": stmt.excluded.price,
                             "price_with_vat": stmt.excluded.price_with_vat,
-                            "valid_to": stmt.excluded.valid_to
-                        }
+                            "valid_to": stmt.excluded.valid_to,
+                        },
                     )
                     await db.execute(stmt)
                     await db.commit()
-                    
+
             except Exception as e:
                 print(f"Error fetching/storing prices for {region}: {e}")
-            
+
             # Small delay to be polite to the API
             await asyncio.sleep(0.5)

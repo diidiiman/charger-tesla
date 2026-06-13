@@ -54,6 +54,7 @@ class UserSettingsUpdate(BaseModel):
 class AuthStartRequest(BaseModel):
     return_url: str | None = None
 
+
 class AuthStartResponse(BaseModel):
     authorize_url: str
 

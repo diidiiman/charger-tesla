@@ -6,12 +6,17 @@ from app import tesla
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+
 async def main():
     async with SessionLocal() as db:
-        user = (await db.execute(select(User).options(selectinload(User.tesla)).where(User.id == 1))).scalar_one()
+        user = (
+            await db.execute(
+                select(User).options(selectinload(User.tesla)).where(User.id == 1)
+            )
+        ).scalar_one()
         token = await tesla.get_access_token(db, user)
         s = tesla.get_settings()
-        
+
         async with httpx.AsyncClient() as client:
             r = await client.request(
                 "GET",
@@ -20,6 +25,7 @@ async def main():
             )
             print("Status:", r.status_code)
             print("Body:", r.text)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

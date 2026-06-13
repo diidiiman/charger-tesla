@@ -7,16 +7,21 @@ from sqlalchemy.orm import selectinload
 import httpx
 import json
 
+
 async def main():
     async with SessionLocal() as db:
-        user = (await db.execute(select(User).options(selectinload(User.tesla)).where(User.id == 1))).scalar_one()
+        user = (
+            await db.execute(
+                select(User).options(selectinload(User.tesla)).where(User.id == 1)
+            )
+        ).scalar_one()
         if not user.tesla:
             print("No Tesla account linked")
             return
-            
+
         token = await tesla.get_access_token(db, user)
         s = tesla.get_settings()
-        
+
         async with httpx.AsyncClient() as client:
             r = await client.request(
                 "GET",
@@ -28,5 +33,6 @@ async def main():
                 print(json.dumps(r.json(), indent=2))
             except Exception:
                 print(r.text)
+
 
 asyncio.run(main())

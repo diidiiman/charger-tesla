@@ -19,13 +19,21 @@ from .db import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer().with_variant(BigInteger, "postgresql"),
+        primary_key=True,
+        autoincrement=True,
+    )
     # Stable device id from the mobile install (UUID). One user per device for v1.
     device_id: Mapped[str | None] = mapped_column(
         String(64), unique=True, index=True, nullable=True
     )
-    google_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
-    apple_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
+    google_id: Mapped[str | None] = mapped_column(
+        String(128), unique=True, index=True, nullable=True
+    )
+    apple_id: Mapped[str | None] = mapped_column(
+        String(128), unique=True, index=True, nullable=True
+    )
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -39,7 +47,9 @@ class User(Base):
     home_latitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     home_longitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     push_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    price_change_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    price_change_reminder: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     auto_charge_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
@@ -121,11 +131,17 @@ class RegionPrice(Base):
     __tablename__ = "region_prices"
     __table_args__ = (UniqueConstraint("region", "valid_from"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer().with_variant(BigInteger, "postgresql"),
+        primary_key=True,
+        autoincrement=True,
+    )
     region: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     price: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
     price_with_vat: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
-    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     valid_to: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -137,7 +153,11 @@ class ChargeEvent(Base):
 
     __tablename__ = "charge_events"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer().with_variant(BigInteger, "postgresql"),
+        primary_key=True,
+        autoincrement=True,
+    )
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )

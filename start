@@ -2,11 +2,12 @@
 set -e
 
 usage() {
-  echo "Usage: $0 {up|down|nuke}"
+  echo "Usage: $0 {up|down|nuke|console api}"
   echo ""
-  echo "  up      Start the infrastructure (default if no argument is provided)."
-  echo "  down    Stop and remove containers and networks."
-  echo "  nuke    Stop, remove containers, networks, and delete ALL volumes and images."
+  echo "  up           Start the infrastructure (default if no argument is provided)."
+  echo "  down         Stop and remove containers and networks."
+  echo "  nuke         Stop, remove containers, networks, and delete ALL volumes and images."
+  echo "  console api  Open a bash shell inside the backend container."
   echo ""
   exit 1
 }
@@ -47,6 +48,15 @@ nuke() {
   fi
 }
 
+console() {
+  if [ "$1" == "api" ]; then
+    echo "Opening backend console..."
+    docker compose exec backend /bin/bash
+  else
+    usage
+  fi
+}
+
 case "$1" in
   up)
     up
@@ -56,6 +66,9 @@ case "$1" in
     ;;
   nuke)
     nuke
+    ;;
+  console)
+    console "$2"
     ;;
   "")
     up

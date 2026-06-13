@@ -18,7 +18,9 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     await init_db()
     task = asyncio.create_task(run_forever(), name="auto-charge-scheduler")
-    price_task = asyncio.create_task(fetch_daily_prices_forever(), name="price-fetcher-scheduler")
+    price_task = asyncio.create_task(
+        fetch_daily_prices_forever(), name="price-fetcher-scheduler"
+    )
     try:
         yield
     finally:
@@ -57,6 +59,7 @@ app.include_router(subscription.router)
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True}
+
 
 @app.get("/.well-known/appspecific/com.tesla.3p.public-key.pem")
 async def get_public_key() -> PlainTextResponse:

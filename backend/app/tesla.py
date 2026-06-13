@@ -143,7 +143,9 @@ async def wake_up(access_token: str, vehicle_id: str) -> dict:
 
 async def vehicle_data(access_token: str, vehicle_id: str) -> dict:
     return await _api(
-        "GET", access_token, f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_state%3Blocation_data"
+        "GET",
+        access_token,
+        f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_state%3Blocation_data",
     )
 
 

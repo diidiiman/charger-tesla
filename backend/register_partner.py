@@ -11,6 +11,7 @@ AUDIENCE = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
 AUTH_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
 DOMAIN = "chess-pettiness-user.ngrok-free.dev"
 
+
 async def main():
     async with httpx.AsyncClient() as client:
         print("Fetching Partner Token...")
@@ -26,19 +27,20 @@ async def main():
         if res.status_code >= 400:
             print("Failed to get partner token:", res.status_code, res.text)
             return
-        
+
         token = res.json()["access_token"]
         print("Partner token retrieved.")
-        
+
         print(f"Registering domain: {DOMAIN}")
         # 2. Register Partner Account
         reg_res = await client.post(
             f"{AUDIENCE}/api/1/partner_accounts",
             headers={"Authorization": f"Bearer {token}"},
-            json={"domain": DOMAIN}
+            json={"domain": DOMAIN},
         )
-        
+
         print("Registration Status:", reg_res.status_code)
         print("Registration Response:", reg_res.text)
+
 
 asyncio.run(main())

@@ -58,8 +58,28 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def process_revision_directives(context_arg, revision, directives):
+    script = directives[0]
+    if script.upgrade_ops.is_empty() and getattr(
+        config.cmd_opts, "autogenerate", False
+    ):
+        directives[:] = []
+        return
+
+    head_rev = context_arg.get_current_revision()
+    if head_rev is None:
+        new_rev_id = 1
+    else:
+        new_rev_id = int(head_rev) + 1
+    script.rev_id = f"{new_rev_id:04d}"
+
+
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=process_revision_directives,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

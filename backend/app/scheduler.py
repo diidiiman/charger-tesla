@@ -19,7 +19,9 @@ from .notifications import send_push_notification
 log = logging.getLogger(__name__)
 
 
-async def _evaluate_user_hourly(session, user: User, now: datetime, prev_hour: datetime) -> None:
+async def _evaluate_user_hourly(
+    session, user: User, now: datetime, prev_hour: datetime
+) -> None:
     if not user.region or user.threshold_price is None:
         return
     if user.tesla is None or not user.tesla.vehicle_id:
@@ -81,10 +83,18 @@ async def _evaluate_user_hourly(session, user: User, now: datetime, prev_hour: d
         veh_lon = location_data.get("longitude")
         if veh_lat is not None and veh_lon is not None:
             lat_diff = (veh_lat - float(user.home_latitude)) * 111000
-            lon_diff = (veh_lon - float(user.home_longitude)) * 111000 * math.cos(math.radians(float(user.home_latitude)))
+            lon_diff = (
+                (veh_lon - float(user.home_longitude))
+                * 111000
+                * math.cos(math.radians(float(user.home_latitude)))
+            )
             distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
             if distance_meters > 200:
-                log.info("user=%s vehicle is not at home (distance: %.0fm)", user.id, distance_meters)
+                log.info(
+                    "user=%s vehicle is not at home (distance: %.0fm)",
+                    user.id,
+                    distance_meters,
+                )
                 return
     else:
         log.info("user=%s has no home location set, skipping auto-charge", user.id)
@@ -120,9 +130,11 @@ async def _evaluate_user_hourly(session, user: User, now: datetime, prev_hour: d
             msg_body += "Vehicle is already charging."
         else:
             msg_body += "Vehicle is plugged in."
-            
+
         if user.push_token and user.price_change_reminder:
-            asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+            asyncio.create_task(
+                send_push_notification(user.push_token, msg_title, msg_body)
+            )
 
     elif was_cheap and not is_cheap:
         # Price rose
@@ -142,7 +154,9 @@ async def _evaluate_user_hourly(session, user: User, now: datetime, prev_hour: d
             msg_body += "Please stop charging manually."
 
         if user.push_token and user.price_change_reminder:
-            asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+            asyncio.create_task(
+                send_push_notification(user.push_token, msg_title, msg_body)
+            )
 
     if action != "skip" or detail is not None:
         session.add(
@@ -160,7 +174,7 @@ async def _evaluate_user_hourly(session, user: User, now: datetime, prev_hour: d
 async def _evaluate_all_users() -> None:
     now = datetime.now(timezone.utc)
     prev_hour = now - timedelta(hours=1)
-    
+
     async with SessionLocal() as session:
         result = await session.execute(
             select(User)
@@ -206,6 +220,6 @@ async def fetch_daily_prices_forever() -> None:
                 log.info("Successfully fetched prices for %s", target_date.date())
             except Exception as e:
                 log.exception("price fetch failed: %s", e)
-        
+
         # Check every 10 minutes
         await asyncio.sleep(600)

@@ -124,7 +124,7 @@ async def dashboard(
             }
             try:
                 token = await tesla.get_access_token(db, user)
-                
+
                 async def fetch_data():
                     try:
                         return await tesla.vehicle_data(token, user.tesla.vehicle_id)
@@ -134,7 +134,9 @@ async def dashboard(
                         for _ in range(6):
                             await asyncio.sleep(5)
                             try:
-                                return await tesla.vehicle_data(token, user.tesla.vehicle_id)
+                                return await tesla.vehicle_data(
+                                    token, user.tesla.vehicle_id
+                                )
                             except ValueError:
                                 pass
                         raise ValueError("Vehicle is asleep or offline")
@@ -152,12 +154,23 @@ async def dashboard(
                 charge = {"charging_state": "Asleep", "battery_level": None}
             except Exception as e:
                 charge = {"error": str(e)[:200], "charging_state": "Unknown"}
-            
+
             vehicle["is_at_home"] = False
-            if "location" in vehicle and user.home_latitude is not None and user.home_longitude is not None:
+            if (
+                "location" in vehicle
+                and user.home_latitude is not None
+                and user.home_longitude is not None
+            ):
                 import math
-                lat_diff = (vehicle["location"]["latitude"] - float(user.home_latitude)) * 111000
-                lon_diff = (vehicle["location"]["longitude"] - float(user.home_longitude)) * 111000 * math.cos(math.radians(float(user.home_latitude)))
+
+                lat_diff = (
+                    vehicle["location"]["latitude"] - float(user.home_latitude)
+                ) * 111000
+                lon_diff = (
+                    (vehicle["location"]["longitude"] - float(user.home_longitude))
+                    * 111000
+                    * math.cos(math.radians(float(user.home_latitude)))
+                )
                 distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
                 vehicle["is_at_home"] = distance_meters <= 200
 
@@ -205,7 +218,7 @@ async def charge_start(
             raise ValueError("Vehicle is asleep or offline")
 
     res = await execute_start()
-    
+
     # Poll for up to 30 seconds to wait for state transition
     for _ in range(6):
         await asyncio.sleep(5)
@@ -217,7 +230,7 @@ async def charge_start(
                 break
         except Exception:
             pass
-            
+
     return res
 
 
@@ -244,7 +257,7 @@ async def charge_stop(
             raise ValueError("Vehicle is asleep or offline")
 
     res = await execute_stop()
-    
+
     # Poll for up to 30 seconds to wait for state transition
     for _ in range(6):
         await asyncio.sleep(5)
@@ -256,7 +269,7 @@ async def charge_stop(
                 break
         except Exception:
             pass
-            
+
     return res
 
 

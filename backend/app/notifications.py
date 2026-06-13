@@ -3,17 +3,20 @@ import logging
 
 log = logging.getLogger(__name__)
 
-async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
+
+async def send_push_notification(
+    push_token: str, title: str, body: str, data: dict = None
+):
     if not push_token or not push_token.startswith("ExponentPushToken"):
         return
-        
+
     payload = {
         "to": push_token,
         "title": title,
         "body": body,
         "data": data or {},
     }
-    
+
     async with httpx.AsyncClient() as client:
         try:
             r = await client.post("https://exp.host/--/api/v2/push/send", json=payload)

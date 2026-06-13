@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "971217434612",
+    "project_id": "tesla-nord-pool",
+    "storage_bucket": "tesla-nord-pool.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971217434612:android:edbef4cc7ecda108f8aba1",
+        "android_client_info": {
+          "package_name": "com.clankersystems.charging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQ8vzFp5MPAv-2fup8bcFpoQymsYdaxQM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

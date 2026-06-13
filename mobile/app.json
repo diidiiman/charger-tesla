@@ -11,10 +11,11 @@
     "ios": {
       "icon": "./assets/ios-icon.png",
       "supportsTablet": false,
-      "bundleIdentifier": "com.clankersystems.teslacharger"
+      "bundleIdentifier": "com.clankersystems.charging"
     },
     "android": {
-      "package": "com.clankersystems.teslacharger",
+      "package": "com.clankersystems.charging",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0a0a0c"

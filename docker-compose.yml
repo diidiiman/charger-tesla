@@ -26,6 +26,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mqtt:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
@@ -36,6 +38,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./telemetry/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  fleet-telemetry:
+    image: tesla/fleet-telemetry:latest
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+    volumes:
+      - ./telemetry/server_config.json:/etc/fleet-telemetry/config.json
+      - ./telemetry/certs:/etc/fleet-telemetry/certs
+    depends_on:
+      - mqtt
+    command: ["/fleet-telemetry", "-config=/etc/fleet-telemetry/config.json"]
 
 volumes:
   pgdata:

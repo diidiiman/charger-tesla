@@ -170,3 +170,22 @@ class ChargeEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class VehicleState(Base):
+    """Cached vehicle state streamed via Fleet Telemetry."""
+
+    __tablename__ = "vehicle_states"
+
+    vehicle_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    charging_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    battery_range: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    charger_power: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    minutes_to_full_charge: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    charge_limit_soc: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

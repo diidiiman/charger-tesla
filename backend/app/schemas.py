@@ -93,3 +93,15 @@ class SubscriptionStatus(BaseModel):
     product_id: str | None
     expires_at: datetime | None
     platform: str | None
+
+
+class TelemetryWebhookPayload(BaseModel):
+    vehicle_id: str
+    charging_state: str | None = None
+    battery_level: int | None = None
+    battery_range: float | None = None
+    charger_power: float | None = None
+    minutes_to_full_charge: int | None = None
+    charge_limit_soc: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None

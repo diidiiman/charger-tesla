@@ -1,7 +1,8 @@
 import asyncio
 import math
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import User
+from app.models import User, VehicleState
 from app.schemas import DashboardResponse, CurrentPrice
 from app import tesla, prices
 from .get_settings import GetSettingsUseCase
@@ -32,40 +33,39 @@ class GetDashboardUseCase:
                     "vin": user.tesla.vehicle_vin,
                     "display_name": user.tesla.vehicle_display_name,
                 }
-                try:
-                    token = await tesla.get_access_token(db, user)
 
-                    async def fetch_data():
-                        try:
-                            return await tesla.vehicle_data(
-                                token, user.tesla.vehicle_id
-                            )
-                        except ValueError:
-                            # Asleep or offline. Try to wake.
-                            await tesla.wake_up(token, user.tesla.vehicle_id)
-                            for _ in range(6):
-                                await asyncio.sleep(5)
-                                try:
-                                    return await tesla.vehicle_data(
-                                        token, user.tesla.vehicle_id
-                                    )
-                                except ValueError:
-                                    pass
-                            raise ValueError("Vehicle is asleep or offline")
-
-                    data = await fetch_data()
-                    resp = data.get("response") or {}
-                    charge = resp.get("charge_state") or resp or data
-                    location = resp.get("drive_state")
-                    if location and "latitude" in location and "longitude" in location:
+                # Fetch state from DB instead of Tesla API
+                state = (
+                    await db.execute(
+                        select(VehicleState).where(
+                            VehicleState.vehicle_id == user.tesla.vehicle_id
+                        )
+                    )
+                ).scalar_one_or_none()
+                if state:
+                    charge = {
+                        "charging_state": state.charging_state or "Unknown",
+                        "battery_level": state.battery_level,
+                        "battery_range": (
+                            float(state.battery_range)
+                            if state.battery_range is not None
+                            else None
+                        ),
+                        "charger_power": (
+                            float(state.charger_power)
+                            if state.charger_power is not None
+                            else None
+                        ),
+                        "minutes_to_full_charge": state.minutes_to_full_charge,
+                        "charge_limit_soc": state.charge_limit_soc,
+                    }
+                    if state.latitude is not None and state.longitude is not None:
                         vehicle["location"] = {
-                            "latitude": location["latitude"],
-                            "longitude": location["longitude"],
+                            "latitude": float(state.latitude),
+                            "longitude": float(state.longitude),
                         }
-                except ValueError:
-                    charge = {"charging_state": "Asleep", "battery_level": None}
-                except Exception as e:
-                    charge = {"error": str(e)[:200], "charging_state": "Unknown"}
+                else:
+                    charge = {"charging_state": "Unknown", "battery_level": None}
 
                 vehicle["is_at_home"] = False
                 if (

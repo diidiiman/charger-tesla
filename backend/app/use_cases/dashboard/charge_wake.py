@@ -1,7 +1,8 @@
 import asyncio
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import User
+from app.models import User, VehicleState
 from app import tesla
 
 
@@ -12,16 +13,18 @@ class ChargeWakeUseCase:
         token = await tesla.get_access_token(db, user)
         res = await tesla.wake_up(token, user.tesla.vehicle_id)
 
-        # Poll for up to 30 seconds to wait for the vehicle to wake up
+        # Poll our local VehicleState database for up to 30 seconds
         for _ in range(6):
             await asyncio.sleep(5)
-            try:
-                state_data = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-                resp = state_data.get("response") or {}
-                charge = resp.get("charge_state") or resp or state_data
-                if charge.get("charging_state") not in ("Unknown", "Asleep", None):
-                    break
-            except Exception:
-                pass
+            await db.commit()
+            state = (
+                await db.execute(
+                    select(VehicleState).where(
+                        VehicleState.vehicle_id == user.tesla.vehicle_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if state and state.charging_state not in ("Unknown", "Asleep", None):
+                break
 
         return res

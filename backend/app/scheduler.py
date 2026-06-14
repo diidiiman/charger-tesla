@@ -30,9 +30,6 @@ async def _evaluate_user(
     is_pro = user.subscription and user.subscription.active
     auto_charge = user.auto_charge_enabled and is_pro
 
-    if not auto_charge:
-        return
-
     if not user.region or user.threshold_price is None:
         return
     if user.tesla is None or not user.tesla.vehicle_id:
@@ -161,34 +158,48 @@ async def _evaluate_user(
             battery = state_db.battery_level or 0
             limit = state_db.charge_limit_soc or 100
             if battery < limit:
-                msg_title = "Charging Started"
-                msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). "
-                try:
-                    token = await tesla.get_access_token(session, user)
-                    await tesla.charge_start(token, user.tesla.vehicle_id)
-                    action = "start"
-                    msg_body += "Auto-charging started."
-                except Exception as e:
-                    detail = f"start failed: {e!s:.200}"
-                    msg_body += "Failed to auto-start charging."
-                
-                if user.push_token and user.price_change_reminder and action == "start":
-                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+                if auto_charge:
+                    msg_title = "Charging Started"
+                    msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). "
+                    try:
+                        token = await tesla.get_access_token(session, user)
+                        await tesla.charge_start(token, user.tesla.vehicle_id)
+                        action = "start"
+                        msg_body += "Auto-charging started."
+                    except Exception as e:
+                        detail = f"start failed: {e!s:.200}"
+                        msg_body += "Failed to auto-start charging."
+                    
+                    if user.push_token and user.price_change_reminder and action == "start":
+                        asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+                else:
+                    msg_title = "Price Dropped"
+                    msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). Open the app to start charging."
+                    action = "notify_cheap"
+                    if user.push_token and user.price_change_reminder:
+                        asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
 
         elif not is_cheap and currently_charging:
-            msg_title = "Charging Stopped"
-            msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). "
-            try:
-                token = await tesla.get_access_token(session, user)
-                await tesla.charge_stop(token, user.tesla.vehicle_id)
-                action = "stop"
-                msg_body += "Auto-charging stopped."
-            except Exception as e:
-                detail = f"stop failed: {e!s:.200}"
-                msg_body += "Failed to auto-stop charging."
-            
-            if user.push_token and user.price_change_reminder and action == "stop":
-                asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+            if auto_charge:
+                msg_title = "Charging Stopped"
+                msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). "
+                try:
+                    token = await tesla.get_access_token(session, user)
+                    await tesla.charge_stop(token, user.tesla.vehicle_id)
+                    action = "stop"
+                    msg_body += "Auto-charging stopped."
+                except Exception as e:
+                    detail = f"stop failed: {e!s:.200}"
+                    msg_body += "Failed to auto-stop charging."
+                
+                if user.push_token and user.price_change_reminder and action == "stop":
+                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+            else:
+                msg_title = "Price Increased"
+                msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). Open the app to stop charging."
+                action = "notify_expensive"
+                if user.push_token and user.price_change_reminder:
+                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
 
         if action != "skip" or detail is not None:
             session.add(

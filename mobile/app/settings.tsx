@@ -12,6 +12,7 @@ export default function Settings() {
   const [vatIncluded, setVatIncluded] = useState(true);
   const [priceChangeReminder, setPriceChangeReminder] = useState(true);
   const [autoCharge, setAutoCharge] = useState(false);
+  const [hasPro, setHasPro] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,9 +20,10 @@ export default function Settings() {
   useEffect(() => {
     (async () => {
       try {
-        const [r, s] = await Promise.all([api.regions(), api.getSettings()]);
+        const [r, s, sub] = await Promise.all([api.regions(), api.getSettings(), api.subscriptionStatus()]);
         setRegions(r);
         setSettings(s);
+        setHasPro(sub.active);
         if (s.threshold_price != null) setThreshold(s.threshold_price.toString());
         if (s.vat_included != null) setVatIncluded(s.vat_included);
         if (s.price_change_reminder != null) setPriceChangeReminder(s.price_change_reminder);
@@ -107,7 +109,13 @@ export default function Settings() {
         <View style={[styles.card, { marginTop: theme.space.lg }]}>
           <Label>Notifications & Automation</Label>
           <View style={{ marginTop: theme.space.md }}>
-            <Pressable onPress={() => setAutoCharge(!autoCharge)} style={[styles.row, { paddingVertical: theme.space.xs }]}>
+            <Pressable onPress={() => {
+              if (!hasPro) {
+                router.push('/upgrade');
+              } else {
+                setAutoCharge(!autoCharge);
+              }
+            }} style={[styles.row, { paddingVertical: theme.space.xs }]}>
               <Body>Enable Auto-Charging</Body>
               <View style={[styles.checkbox, autoCharge && styles.checkboxActive]} />
             </Pressable>

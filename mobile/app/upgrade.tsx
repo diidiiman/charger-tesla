@@ -80,6 +80,9 @@ export default function Upgrade() {
         receipt,
       });
       setStatus(verified);
+      if (verified.active) {
+        await api.putSettings({ auto_charge_enabled: true });
+      }
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -107,6 +110,9 @@ export default function Upgrade() {
         receipt,
       });
       setStatus(verified);
+      if (verified.active) {
+        await api.putSettings({ auto_charge_enabled: true });
+      }
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   }

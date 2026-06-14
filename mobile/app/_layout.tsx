@@ -34,7 +34,7 @@ export default function RootLayout() {
         <Stack.Screen name="connect" options={{ title: 'Connect Tesla' }} />
         <Stack.Screen name="dashboard" options={{ headerShown: false, title: 'Back' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
-        <Stack.Screen name="upgrade" options={{ title: 'Tesla Charger Pro', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="upgrade" options={{ title: 'Tesla Nord Pool Pro', headerBackTitle: 'Back' }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>

@@ -13,7 +13,7 @@ usage() {
 }
 
 up() {
-  echo "Starting Tesla Charger infrastructure..."
+  echo "Starting Tesla Nord Pool infrastructure..."
 
   # Bring up the Docker containers
   docker compose up -d --build
@@ -31,7 +31,7 @@ up() {
 }
 
 down() {
-  echo "Stopping Tesla Charger infrastructure..."
+  echo "Stopping Tesla Nord Pool infrastructure..."
   docker compose down
   echo "Infrastructure stopped."
 }

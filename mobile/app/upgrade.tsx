@@ -102,10 +102,9 @@ export default function Upgrade() {
     <View style={styles.root}>
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Label>Tesla Charger Pro</Label>
+          <Label>Tesla Nord Pool Pro</Label>
           <Pill tone={status?.active ? 'ok' : undefined} label={status?.active ? 'Active' : 'Inactive'} />
         </View>
-        <H1 style={{ marginTop: theme.space.md }}>€5 / month</H1>
         <Body muted style={{ marginTop: theme.space.md }}>
           With Pro, the app watches the price for your region and automatically starts and stops your
           Tesla’s charging session whenever the price crosses your threshold. Cancel any time from the

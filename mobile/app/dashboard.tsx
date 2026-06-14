@@ -73,7 +73,7 @@ export default function Dashboard() {
         contentContainerStyle={{ padding: theme.space['2xl'], gap: theme.space.lg }}
       >
         <View style={styles.header}>
-          <H1>Tesla Charger</H1>
+          <H1>Tesla Nord Pool</H1>
           <Pill
             tone={data?.subscription_active ? 'ok' : undefined}
             label={data?.subscription_active ? 'Pro' : 'Free'}

@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Tesla Charger",
+    title="Tesla Nord Pool",
     version="0.1.0",
     lifespan=lifespan,
     docs_url="/docs",

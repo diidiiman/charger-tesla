@@ -1,6 +1,6 @@
 # Authentication Setup Guide
 
-This guide walks you through setting up Google and Apple authentication for the Tesla Charger app on both iOS and Android.
+This guide walks you through setting up Google and Apple authentication for the Tesla Nord Pool app on both iOS and Android.
 
 ## 1. Apple Sign-In (iOS Only)
 

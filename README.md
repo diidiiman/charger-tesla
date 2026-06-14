@@ -1,4 +1,4 @@
-# Tesla Charger
+# Tesla Nord Pool
 
 Threshold-based charging controller for Tesla vehicles, driven by Nord Pool
 day-ahead electricity prices.

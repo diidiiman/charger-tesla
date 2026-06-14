@@ -47,7 +47,7 @@ export default function NotificationsOnboarding() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <H1>Tesla Charger</H1>
+        <H1>Tesla Nord Pool</H1>
         <Pill label="Step 3 / 4" />
       </View>
 

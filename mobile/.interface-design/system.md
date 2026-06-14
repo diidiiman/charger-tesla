@@ -1,4 +1,4 @@
-# Tesla Charger Mobile — Interface Design System
+# Tesla Nord Pool Mobile — Interface Design System
 
 > Per the `interface-design` skill convention
 > (https://github.com/Dammyjay93/interface-design). Source of truth for every

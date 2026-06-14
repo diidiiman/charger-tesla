@@ -1,6 +1,6 @@
 # DigitalOcean Production Deployment Guide
 
-This guide explains how to deploy the Tesla Charger backend, database, and telemetry infrastructure to a DigitalOcean Droplet using GitHub Actions for fully automated CI/CD.
+This guide explains how to deploy the Tesla Nord Pool backend, database, and telemetry infrastructure to a DigitalOcean Droplet using GitHub Actions for fully automated CI/CD.
 
 ## Architecture
 We use a single Droplet to run all application containers via `docker-compose.prod.yml`, and a separate Managed Database:

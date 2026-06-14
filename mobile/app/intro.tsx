@@ -21,7 +21,7 @@ const SLIDES: Slide[] = [
     label: 'Step 1',
     title: 'Charge only when power is cheap.',
     body:
-      'Pick the electricity-market region you live in. We pull Nord Pool day-ahead prices for that area every few minutes, in EUR/kWh.',
+      'We pull Nord Pool day-ahead prices and use them to decide whether it is the right time to charge your Tesla.',
   },
   {
     label: 'Step 2',
@@ -39,7 +39,7 @@ const SLIDES: Slide[] = [
     label: 'Pro',
     title: 'Optional: hands-free.',
     body:
-      `Upgrade to Pro (€5 / month, via the ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}) and the app starts and stops charging for you whenever the price crosses your threshold.`,
+      `Upgrade to Pro (via the ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}) and the app starts and stops charging for you whenever the price crosses your threshold.`,
   },
 ];
 
@@ -59,14 +59,14 @@ export default function Intro() {
       ref.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
       await introSeen.mark();
-      router.replace('/login');
+      router.replace('/');
     }
   }
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <H1>Tesla Charger</H1>
+        <H1>Tesla Nord Pool</H1>
         <Pill label={`${index + 1} / ${SLIDES.length}`} />
       </View>
 

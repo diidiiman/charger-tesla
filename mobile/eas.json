@@ -8,19 +8,19 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://charging.clankersystems.com"
+        "EXPO_PUBLIC_API_BASE": "https://api.charging.clankersystems.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://charging.clankersystems.com"
+        "EXPO_PUBLIC_API_BASE": "https://api.charging.clankersystems.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://charging.clankersystems.com"
+        "EXPO_PUBLIC_API_BASE": "https://api.charging.clankersystems.com"
       }
     }
   },

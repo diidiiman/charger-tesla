@@ -47,7 +47,7 @@ To allow your Python backend to automatically verify purchase tokens with Google
 4. Grant the Service Account the "Owner" or "Pub/Sub Admin" roles (or link it in the Play Console under **API access** with financial permissions).
 5. Generate a JSON Key for the Service Account and download it.
 6. Set the following environment variables in your backend `.env`:
-   - `PLAY_PACKAGE_NAME` (e.g., `com.clankersystems.teslacharger`)
+   - `PLAY_PACKAGE_NAME` (e.g., `com.clankersystems.charging`)
    - `PLAY_SERVICE_ACCOUNT_JSON_PATH` (absolute path to the JSON key file)
 
 ## 3. Testing IAP

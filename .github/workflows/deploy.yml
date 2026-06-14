@@ -9,22 +9,35 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Droplet
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Copy files via SSH
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DROPLET_DOMAIN }}
+          username: root
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "."
+          target: "/opt/teslacharger"
+
+      - name: Execute Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DROPLET_IP }}
+          host: ${{ secrets.DROPLET_DOMAIN }}
           username: root
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            # Navigate to the deployment directory
             cd /opt/teslacharger
             
-            # Pull the latest code
-            # Note: The droplet must have its deploy key added to GitHub for this to work
-            git pull origin main
+            # Write Production Environment Variables from secret
+            echo '${{ secrets.PROD_ENV_FILE }}' > .env
             
             # Write Google Service Account JSON from secret
             echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > backend/google-credentials.json
+            
+            # Write Apple App Store Private Key from secret
+            echo '${{ secrets.APPSTORE_PRIVATE_KEY_P8 }}' > backend/appstore_private_key.p8
             
             # Rebuild and restart the production containers
             docker compose -f docker-compose.prod.yml up -d --build

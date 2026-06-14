@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import select
 
 from .config import get_settings
 from .models import RegionPrice
@@ -113,23 +114,63 @@ def get_vat_multiplier(region: str) -> float:
     return VAT_RATES.get(country, 1.0)
 
 
-async def current_price(region: str, dt: datetime = None) -> dict:
+async def current_price(db: AsyncSession, region: str, dt: datetime = None) -> dict:
     if region not in VALID_REGION_CODES:
         raise ValueError(f"unknown region '{region}'")
-    provider = get_settings().price_provider.lower()
-    if provider == "nordpool":
-        return await _nordpool_current(region, dt)
-    raise RuntimeError(f"unknown PRICE_PROVIDER '{provider}'")
+    
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+        
+    stmt = select(RegionPrice).where(
+        RegionPrice.region == region,
+        RegionPrice.valid_from <= dt,
+        RegionPrice.valid_to > dt
+    )
+    result = await db.execute(stmt)
+    record = result.scalar_one_or_none()
+    
+    if record:
+        return {
+            "region": region,
+            "currency": get_settings().price_currency,
+            "unit": "EUR/kWh",
+            "price": float(record.price),
+            "valid_from": record.valid_from.isoformat(),
+            "valid_to": record.valid_to.isoformat(),
+            "provider": "nordpool",
+        }
+        
+    # Not found in DB, fetch from API for this region and date
+    await fetch_and_store_prices(db, dt, regions=[region])
+    
+    # Try fetching again
+    result = await db.execute(stmt)
+    record = result.scalar_one_or_none()
+    
+    if record:
+        return {
+            "region": region,
+            "currency": get_settings().price_currency,
+            "unit": "EUR/kWh",
+            "price": float(record.price),
+            "valid_from": record.valid_from.isoformat(),
+            "valid_to": record.valid_to.isoformat(),
+            "provider": "nordpool",
+        }
+        
+    raise RuntimeError(f"no current Nord Pool price for region {region}")
 
 
-async def fetch_and_store_prices(db: AsyncSession, target_date: datetime):
-    """Fetches day-ahead prices for all regions for the target date and stores them in the database."""
+async def fetch_and_store_prices(db: AsyncSession, target_date: datetime, regions: list[str] = None):
+    """Fetches day-ahead prices for regions for the target date and stores them in the database."""
     settings = get_settings()
     date_str = target_date.strftime("%Y-%m-%d")
     url = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
 
+    regions_to_fetch = regions if regions else VALID_REGION_CODES
+
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for region in VALID_REGION_CODES:
+        for region in regions_to_fetch:
             params = {
                 "date": date_str,
                 "market": "DayAhead",

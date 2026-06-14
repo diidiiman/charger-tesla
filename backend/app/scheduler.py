@@ -28,8 +28,8 @@ async def _evaluate_user_hourly(
         return
 
     try:
-        current_data = await prices.current_price(user.region, now)
-        prev_data = await prices.current_price(user.region, prev_hour)
+        current_data = await prices.current_price(session, user.region, now)
+        prev_data = await prices.current_price(session, user.region, prev_hour)
         current_val = current_data["price"]
         prev_val = prev_data["price"]
         if user.vat_included:

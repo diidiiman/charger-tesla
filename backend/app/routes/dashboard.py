@@ -82,11 +82,14 @@ async def update_settings(
 
 
 @router.get("/price", response_model=CurrentPrice)
-async def get_price(user: User = Depends(current_user)) -> CurrentPrice:
+async def get_price(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user)
+) -> CurrentPrice:
     if not user.region:
         raise HTTPException(400, "no region selected")
     try:
-        data = await prices.current_price(user.region)
+        data = await prices.current_price(db, user.region)
         if user.vat_included:
             data["price"] *= prices.get_vat_multiplier(user.region)
     except Exception as e:
@@ -177,7 +180,7 @@ async def dashboard(
     price = None
     if user.region:
         try:
-            p_data = await prices.current_price(user.region)
+            p_data = await prices.current_price(db, user.region)
             if user.vat_included:
                 p_data["price"] *= prices.get_vat_multiplier(user.region)
             price = CurrentPrice(**p_data)

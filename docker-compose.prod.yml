@@ -32,6 +32,14 @@ services:
       - mqtt
     command: ["/fleet-telemetry", "-config=/etc/fleet-telemetry/config.json"]
 
+  command-proxy:
+    image: tesla/vehicle-command:latest
+    restart: unless-stopped
+    volumes:
+      - ./backend/com.tesla.3p.private-key.pem:/config/fleet-key.pem:ro
+      - ./telemetry/certs:/config/certs:ro
+    command: ["-tls-key", "/config/certs/server.key", "-cert", "/config/certs/server.crt", "-key-file", "/config/fleet-key.pem", "-host", "0.0.0.0", "-port", "4443"]
+
   backend:
     build:
       context: ./backend
@@ -43,10 +51,13 @@ services:
     depends_on:
       mqtt:
         condition: service_started
+      command-proxy:
+        condition: service_started
     volumes:
       - ./backend/com.tesla.3p.public-key.pem:/app/com.tesla.3p.public-key.pem:ro
       - ./backend/google-credentials.json:/app/google-credentials.json:ro
       - ./backend/appstore_private_key.p8:/app/appstore_private_key.p8:ro
+      - ./telemetry/certs/server.crt:/app/server.crt:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
 
 volumes:

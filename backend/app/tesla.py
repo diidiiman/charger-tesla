@@ -159,3 +159,36 @@ async def charge_stop(access_token: str, vehicle_id: str) -> dict:
     return await _api(
         "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/charge_stop"
     )
+
+
+async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:
+    s = get_settings()
+    
+    import os
+    ca_pem = ""
+    if os.path.exists("/app/server.crt"):
+        with open("/app/server.crt", "r") as f:
+            ca_pem = f.read()
+
+    payload = {
+        "hostname": s.public_domain,
+        "port": 4443,
+        "ca": ca_pem,
+        "fields": {
+            "Location": {"interval_seconds": 0},
+            "ChargeState": {"interval_seconds": 0},
+            "DetailedChargeState": {"interval_seconds": 0},
+            "BatteryLevel": {"interval_seconds": 0},
+        }
+    }
+    
+    # Send request directly to our local vehicle-command-proxy
+    async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+        r = await client.post(
+            f"https://command-proxy:4443/api/1/vehicles/{vehicle_vin}/fleet_telemetry_config",
+            headers={"authorization": f"Bearer {access_token}"},
+            json={"config": payload},
+        )
+    if r.status_code >= 400:
+        raise RuntimeError(f"Telemetry config failed: {r.status_code} {r.text}")
+    return r.json()

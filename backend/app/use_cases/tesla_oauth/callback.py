@@ -70,8 +70,12 @@ class CallbackTeslaOAuthUseCase:
                 account.vehicle_id = str(v.get("id_s") or v.get("id") or "")
                 account.vehicle_vin = v.get("vin")
                 account.vehicle_display_name = v.get("display_name")
-        except Exception:
-            pass
+                
+                # Configure the vehicle to start streaming telemetry
+                if account.vehicle_vin:
+                    await tesla.configure_telemetry(tokens["access_token"], account.vehicle_vin)
+        except Exception as e:
+            print(f"Failed to fetch vehicle or configure telemetry: {e}")
 
         await db.commit()
         return RedirectResponse(f"{return_url}?ok=1", status_code=302)

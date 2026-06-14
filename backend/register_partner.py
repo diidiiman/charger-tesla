@@ -3,13 +3,13 @@ import httpx
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path="../.env")
 
 CLIENT_ID = os.environ.get("TESLA_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("TESLA_CLIENT_SECRET")
 AUDIENCE = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
 AUTH_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
-DOMAIN = "chess-pettiness-user.ngrok-free.dev"
+DOMAIN = os.environ.get("PUBLIC_DOMAIN", "api.charging.clankersystems.com")
 
 
 async def main():

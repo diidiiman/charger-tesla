@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Feather } from '@expo/vector-icons';
 import { api, Dashboard as DashboardData } from '../src/api';
@@ -44,7 +44,11 @@ export default function Dashboard() {
     } catch (e: any) { setError(e.message); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   async function run(fn: () => Promise<any>, setSpinner?: (v: boolean) => void) {
     if (setSpinner) setSpinner(true);

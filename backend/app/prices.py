@@ -192,7 +192,9 @@ async def fetch_and_store_prices(db: AsyncSession, target_date: datetime, region
                     payload.get("multiAreaEntries") or payload.get("entries") or []
                 )
 
-                records = []
+                # Group entries by hour
+                hourly_data = {}
+                
                 for e in entries:
                     start = datetime.fromisoformat(
                         e["deliveryStart"].replace("Z", "+00:00")
@@ -207,17 +209,36 @@ async def fetch_and_store_prices(db: AsyncSession, target_date: datetime, region
                         price = e["value"]
 
                     if price is not None:
-                        price_per_kwh = float(price) / 1000.0
-                        price_with_vat = price_per_kwh * get_vat_multiplier(region)
-                        records.append(
-                            {
-                                "region": region,
-                                "price": price_per_kwh,
-                                "price_with_vat": price_with_vat,
-                                "valid_from": start,
-                                "valid_to": end,
-                            }
-                        )
+                        # Group by the start hour
+                        hour_key = start.replace(minute=0, second=0, microsecond=0)
+                        if hour_key not in hourly_data:
+                            hourly_data[hour_key] = {"sum": 0.0, "count": 0, "end": end}
+                        
+                        hourly_data[hour_key]["sum"] += float(price)
+                        hourly_data[hour_key]["count"] += 1
+                        
+                        # Keep track of the latest end time for this hour block
+                        if end > hourly_data[hour_key]["end"]:
+                            hourly_data[hour_key]["end"] = end
+
+                records = []
+                for hour_start, data in hourly_data.items():
+                    avg_price = data["sum"] / data["count"]
+                    price_per_kwh = avg_price / 1000.0
+                    price_with_vat = price_per_kwh * get_vat_multiplier(region)
+                    
+                    # Ensure the block represents exactly 1 hour for DB consistency
+                    hour_end = hour_start + timedelta(hours=1)
+                    
+                    records.append(
+                        {
+                            "region": region,
+                            "price": price_per_kwh,
+                            "price_with_vat": price_with_vat,
+                            "valid_from": hour_start,
+                            "valid_to": hour_end,
+                        }
+                    )
 
                 if records:
                     stmt = insert(RegionPrice).values(records)

@@ -3,3 +3,4 @@
 /backend/venv
 *.Identifier
 backend/project-532fdf4e-56bb-4c7d-a91-a26b3c3dd614.json
+mobile/*-firebase-adminsdk-*.json

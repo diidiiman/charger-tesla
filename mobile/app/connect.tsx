@@ -31,7 +31,7 @@ export default function Connect() {
       const result = await WebBrowser.openAuthSessionAsync(authorize_url, returnUrl);
       if (result.type === 'success' && result.url) {
         const parsed = Linking.parse(result.url);
-        if ((parsed.queryParams?.ok as string) === '1') router.replace('/dashboard');
+        if ((parsed.queryParams?.ok as string) === '1') router.replace('/pairing');
         else setError(`Tesla sign-in failed: ${parsed.queryParams?.error || 'unknown'}`);
       }
     } catch (e: any) { setError(e.message); }

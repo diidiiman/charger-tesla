@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
 from .routes import auth, dashboard, subscription, tesla_oauth, telemetry
-from .scheduler import run_forever, fetch_daily_prices_forever
+from .scheduler import run_forever, fetch_daily_prices_forever, verify_expired_subscriptions_forever
 from .mqtt_subscriber import run_mqtt_subscriber
 
 logging.basicConfig(
@@ -22,15 +22,19 @@ async def lifespan(app: FastAPI):
     price_task = asyncio.create_task(
         fetch_daily_prices_forever(), name="price-fetcher-scheduler"
     )
+    sub_task = asyncio.create_task(
+        verify_expired_subscriptions_forever(), name="subscription-verifier-scheduler"
+    )
     mqtt_task = asyncio.create_task(run_mqtt_subscriber(), name="mqtt-subscriber")
     try:
         yield
     finally:
         task.cancel()
         price_task.cancel()
+        sub_task.cancel()
         mqtt_task.cancel()
         try:
-            await asyncio.gather(task, price_task, mqtt_task, return_exceptions=True)
+            await asyncio.gather(task, price_task, sub_task, mqtt_task, return_exceptions=True)
         except Exception:
             pass
 

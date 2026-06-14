@@ -192,3 +192,51 @@ async def fetch_daily_prices_forever() -> None:
 
         # Check every 10 minutes
         await asyncio.sleep(600)
+
+
+async def verify_expired_subscriptions_forever() -> None:
+    log.info("subscription verification scheduler running")
+    last_run_date = None
+    while True:
+        now = datetime.now(timezone.utc)
+        # Run daily at 02:00 UTC
+        if now.hour == 2 and last_run_date != now.date():
+            try:
+                from .subscriptions import verify_receipt
+                
+                async with SessionLocal() as session:
+                    # Find all subscriptions that are marked active but have expired
+                    result = await session.execute(
+                        select(Subscription).where(
+                            Subscription.active == True,
+                            Subscription.expires_at < now
+                        )
+                    )
+                    subs = result.scalars().all()
+                    
+                    for sub in subs:
+                        log.info("Re-verifying expired subscription for user_id=%s platform=%s", sub.user_id, sub.platform)
+                        try:
+                            v_result = await verify_receipt(sub.platform, sub.receipt)
+                            
+                            sub.active = v_result["active"]
+                            sub.expires_at = v_result["expires_at"]
+                            sub.last_verified_at = now
+                            
+                            if not sub.active:
+                                log.info("Subscription officially lapsed for user_id=%s", sub.user_id)
+                                
+                        except Exception as e:
+                            log.warning("Failed to re-verify subscription for user_id=%s: %s", sub.user_id, e)
+                            
+                        # Be polite to the app stores
+                        await asyncio.sleep(1)
+                        
+                    await session.commit()
+                last_run_date = now.date()
+                log.info("Successfully ran daily subscription verification sweep")
+            except Exception as e:
+                log.exception("Subscription verification sweep failed: %s", e)
+
+        # Check every 10 minutes
+        await asyncio.sleep(600)

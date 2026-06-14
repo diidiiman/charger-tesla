@@ -62,6 +62,11 @@ export default function Upgrade() {
           });
         });
 
+        // Finish the transaction so Google/Apple know it was delivered!
+        if (typeof IAP.finishTransaction === 'function') {
+          await IAP.finishTransaction({ purchase, isConsumable: false });
+        }
+
         receipt = purchase?.transactionReceipt || purchase?.purchaseToken || '';
         if (!receipt) throw new Error('purchase did not return a receipt');
       } else {

@@ -194,7 +194,7 @@ async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:
             "Location": {"interval_seconds": 0},
             "ChargeState": {"interval_seconds": 0},
             "DetailedChargeState": {"interval_seconds": 0},
-            "BatteryLevel": {"interval_seconds": 0},
+            "Soc": {"interval_seconds": 0},
         }
     }
     

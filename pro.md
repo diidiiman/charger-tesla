@@ -44,9 +44,10 @@ To allow your Python backend to automatically verify purchase tokens with Google
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) for your project.
 2. Enable the **Google Play Android Developer API**.
 3. Go to **Credentials** -> **Create Credentials** -> **Service Account**.
-4. Grant the Service Account the "Owner" or "Pub/Sub Admin" roles (or link it in the Play Console under **API access** with financial permissions).
-5. Generate a JSON Key for the Service Account and download it.
-6. Set the following environment variables in your backend `.env`:
+4. Go to the **Users and permissions** page in the Google Play Console and invite the Service Account email as a new user.
+5. Grant it the **View financial data, orders, and cancellation survey responses** and **Manage orders and subscriptions** permissions.
+6. Generate a JSON Key for the Service Account in Google Cloud and download it.
+7. Set the following environment variables in your backend `.env`:
    - `PLAY_PACKAGE_NAME` (e.g., `com.clankersystems.charging`)
    - `PLAY_SERVICE_ACCOUNT_JSON_PATH` (absolute path to the JSON key file)
 

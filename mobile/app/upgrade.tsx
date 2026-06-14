@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, Linking } from 'react-native';
 import { api, SubscriptionStatus } from '../src/api';
 import { Body, Button, Card, ErrorBox, H1, H2, Label, Pill } from '../src/components/ui';
 import { theme } from '../src/theme';
@@ -107,12 +107,11 @@ export default function Upgrade() {
   }
 
   async function cancelPlan() {
-    setBusy(true); setError(null);
-    try {
-      await api.cancelSubscription();
-      setStatus({ ...(status as SubscriptionStatus), active: false });
-    } catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
+    if (Platform.OS === 'ios') {
+      Linking.openURL('https://apps.apple.com/account/subscriptions');
+    } else {
+      Linking.openURL('https://play.google.com/store/account/subscriptions?package=com.clankersystems.charging&sku=charging_pro_monthly');
+    }
   }
 
   return (

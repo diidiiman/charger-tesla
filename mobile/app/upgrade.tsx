@@ -34,8 +34,34 @@ export default function Upgrade() {
       let product_id = 'charging_pro_monthly';
       if (IAP && typeof IAP.initConnection === 'function') {
         await IAP.initConnection();
-        await IAP.getSubscriptions({ skus: [product_id] });
-        const purchase = await IAP.requestSubscription({ sku: product_id });
+        if (typeof IAP.fetchProducts === 'function') {
+          await IAP.fetchProducts({ skus: [product_id], type: 'subs' });
+        }
+        
+        const purchase: any = await new Promise((resolve, reject) => {
+          const sub1 = IAP.purchaseUpdatedListener((p: any) => {
+            sub1.remove();
+            sub2.remove();
+            resolve(p);
+          });
+          const sub2 = IAP.purchaseErrorListener((e: any) => {
+            sub1.remove();
+            sub2.remove();
+            reject(e);
+          });
+          IAP.requestPurchase({
+            request: {
+              apple: { sku: product_id },
+              google: { skus: [product_id] },
+            },
+            type: 'subs'
+          }).catch((err: any) => {
+            sub1.remove();
+            sub2.remove();
+            reject(err);
+          });
+        });
+
         receipt = purchase?.transactionReceipt || purchase?.purchaseToken || '';
         if (!receipt) throw new Error('purchase did not return a receipt');
       } else {

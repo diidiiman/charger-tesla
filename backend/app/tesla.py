@@ -41,7 +41,7 @@ def build_authorize_url(code_challenge: str, state: str) -> str:
         "state": state,
         "prompt": "login consent",
     }
-    return f"{s.tesla_auth_base}/oauth2/v3/authorize?{urlencode(params)}"
+    return f"https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize?{urlencode(params)}"
 
 
 def parse_callback_url(url: str) -> tuple[str | None, str | None]:

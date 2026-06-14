@@ -1,35 +1,47 @@
 # Tesla Nord Pool
 
-Threshold-based charging controller for Tesla vehicles, driven by Nord Pool
-day-ahead electricity prices.
+Threshold-based charging controller for Tesla vehicles, driven by Nord Pool day-ahead electricity prices.
 
-- **Backend** — FastAPI (Python 3.12) + PostgreSQL, Tesla Fleet OAuth, encrypted
-  refresh tokens, background scheduler for auto-charging (Pro tier only).
-- **Mobile** — Expo (React Native, TypeScript). Intro carousel, region picker,
-  Tesla connect, live dashboard, settings, IAP-driven Pro upgrade.
-- **Edge** — Caddy reverse proxy with automatic Let's Encrypt cert provisioning
-  for `charging.clankersystems.com`.
+- **Backend** — FastAPI (Python 3.12) + PostgreSQL (Alembic migrations), Tesla Fleet OAuth, encrypted refresh tokens, background scheduler for auto-charging (Pro tier only), and MQTT telemetry subscriber.
+- **Mobile** — Expo (React Native, TypeScript). Intro carousel, region picker, Tesla connect, live dashboard, settings, IAP-driven Pro upgrade.
+- **Infrastructure** — DigitalOcean Droplet + Managed PostgreSQL. Fully automated deployment via GitHub Actions.
+- **Edge** — Caddy reverse proxy with automatic Let's Encrypt cert provisioning for your domain. Cloudflare Worker to proxy Tesla token requests and bypass the WAF.
+- **Tesla Middleware** — Official Tesla `fleet-telemetry` server (terminating mTLS) and `vehicle-command` proxy for signing configurations.
 
-```
-┌──────────┐    HTTPS    ┌──────────┐         ┌────────────┐
-│ Expo app │ ─────────►  │  Caddy   │ ──────► │  FastAPI   │
-└──────────┘  (auto-SSL) └──────────┘         │  backend   │
-       ▲                                       └─────┬──────┘
-       │ teslacharger:// deep-link                   │
-       │ (post-OAuth callback)                       ▼
-       │                                       ┌──────────┐
-       └────────── Tesla Fleet API ────────►   │ Postgres │
-                                                └──────────┘
+```text
+┌──────────┐    HTTPS    ┌──────────┐         ┌────────────┐         ┌────────────┐
+│ Expo app │ ─────────►  │  Caddy   │ ──────► │  FastAPI   │ ──────► │ Postgres   │
+└──────────┘  (auto-SSL) └────┬─────┘         │  backend   │         └────────────┘
+       ▲                      │               └─────┬──────┘               ▲
+       │ teslacharger://      │                     │ (Auth exchange)      │ (saves live data)
+       │                      ▼                     ▼                      │
+       │                 ┌──────────┐         ┌────────────┐               │
+       │                 │Cloudflare│ ──────► │ Tesla Fleet│               │
+       │                 │  Worker  │         │    API     │               │
+       │                 └──────────┘         └────────────┘               │
+       │                                                                   │
+       │                 ┌──────────┐         ┌────────────┐         ┌─────┴──────┐
+       └───────────────  │  Tesla   │ ──────► │  Fleet     │ ──────► │   MQTT     │
+         telemetry       │ Vehicle  │  mTLS   │ Telemetry  │         │ Subscriber │
+         streaming       └──────────┘         └────────────┘         └────────────┘
+                              ▲                     ▲
+                              │                     │
+                         ┌──────────┐               │
+                         │ Command  │ ──────────────┘
+                         │  Proxy   │ ◄───── (Backend sends telemetry config)
+                         └──────────┘
 ```
 
 ---
 
 ## Repo layout
 
-```
+```text
 .
 ├── backend/                FastAPI service
 │   ├── Dockerfile
+│   ├── alembic.ini         DB migrations config
+│   ├── entrypoint.sh       runs migrations & boots app
 │   ├── requirements.txt
 │   └── app/
 │       ├── main.py         lifespan + router wiring
@@ -38,180 +50,130 @@ day-ahead electricity prices.
 │       ├── models.py       User, TeslaAccount, Subscription, OAuthState, ChargeEvent
 │       ├── crypto.py       AES-256-GCM for tokens at rest
 │       ├── security.py     JWT session tokens + bearer dep
-│       ├── tesla.py        Fleet OAuth (PKCE) + REST client
+│       ├── tesla.py        Fleet OAuth (PKCE) + REST client + telemetry config
 │       ├── prices.py       Nord Pool day-ahead price provider
-│       ├── subscriptions.py App Store / Play receipt verification (stub)
+│       ├── subscriptions.py App Store / Play receipt verification
 │       ├── scheduler.py    asyncio loop that drives auto-charging
-│       └── routes/         auth · tesla_oauth · dashboard · subscription
+│       ├── mqtt_subscriber.py Listens to Fleet Telemetry streams
+│       └── routes/         auth · tesla_oauth · dashboard · subscription · telemetry
 │
 ├── mobile/                 Expo + React Native (TypeScript)
 │   ├── app.json            scheme: teslacharger
 │   ├── app/                expo-router screens
-│   │   ├── _layout.tsx     Stack navigator
-│   │   ├── index.tsx       boot router (intro / region / connect / dashboard)
-│   │   ├── intro.tsx       4-page onboarding
-│   │   ├── region.tsx      Nord Pool area + threshold
-│   │   ├── connect.tsx     Tesla OAuth launcher
-│   │   ├── auth.tsx        deep-link landing
-│   │   ├── dashboard.tsx   live price + SoC + start/stop
-│   │   ├── settings.tsx    region & threshold edit, unlink Tesla
-│   │   └── upgrade.tsx     Pro IAP
-│   ├── src/
-│   │   ├── theme.ts        design tokens (Precision & Density)
-│   │   ├── api.ts          typed fetch client
-│   │   ├── storage.ts      SecureStore wrapper
-│   │   └── components/ui.tsx
-│   └── .interface-design/system.md  design-system source of truth
+│   ├── src/                api, storage, theme, ui components
+│   └── .interface-design/system.md
 │
-├── docker-compose.yml      caddy + backend + postgres
-├── Caddyfile               auto Let's Encrypt for $PUBLIC_DOMAIN
-├── .env.example            full env template
-└── .gitignore              excludes all .env*, secrets/, pgdata/, expo caches
+├── telemetry/              Fleet telemetry certificates and configs
+│   ├── certs/              server.crt & server.key (mTLS for cars)
+│   └── server_config.json  Go telemetry server config
+│
+├── .github/workflows/deploy.yml  DigitalOcean CI/CD pipeline
+├── docker-compose.prod.yml       Production docker-compose file
+├── docker-compose.yml            Local dev docker-compose file
+├── Caddyfile                     auto Let's Encrypt for $PUBLIC_DOMAIN
+└── .env.example                  full env template
 ```
 
 ---
 
-## Quickstart (dev)
+## Deployment (DigitalOcean & GitHub Actions)
 
-### Prerequisites
+The stack is designed to be deployed onto a DigitalOcean Droplet with a Managed PostgreSQL database using GitHub Actions.
 
-- Docker + Docker Compose
-- A registered Tesla Fleet API app (see *Tesla setup* below)
-- An A/AAAA record pointing `charging.clankersystems.com` → your server
-- Node.js 20+ and `npx expo` for the mobile app
+### 1. Prerequisites
 
-### 1. Configure
+- A DigitalOcean Droplet (Ubuntu/Docker marketplace image).
+- A DigitalOcean Managed PostgreSQL database.
+- A registered domain (e.g. `charging.yourdomain.com`).
+- DNS A-record pointing to your Droplet's IP.
+- A free Cloudflare Worker (to bypass Tesla's WAF).
+- Tesla Developer Account and registered App.
 
-```bash
-cp .env.example .env
-# Edit .env: TESLA_CLIENT_ID, TESLA_CLIENT_SECRET, TESLA_REDIRECT_URI,
-# TOKEN_ENCRYPTION_KEY, SESSION_JWT_SECRET, POSTGRES_PASSWORD, ACME_EMAIL
-python -c "import secrets; print(secrets.token_hex(32))"        # → TOKEN_ENCRYPTION_KEY
-python -c "import secrets; print(secrets.token_urlsafe(48))"     # → SESSION_JWT_SECRET
-```
+### 2. Set up Cloudflare Worker (WAF Bypass)
 
-### 2. Bring the backend up
+Tesla's WAF (Akamai) frequently blocks DigitalOcean IP addresses from making OAuth token exchanges. We proxy this through a Cloudflare Worker:
 
-```bash
-docker compose up -d --build
-docker compose logs -f backend caddy
-```
+1. Create a Cloudflare Worker.
+2. Use this script:
+   ```javascript
+   export default {
+     async fetch(request, env, ctx) {
+       const targetUrl = 'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token';
+       const newRequest = new Request(targetUrl, {
+         method: request.method,
+         headers: request.headers,
+         body: request.method === 'POST' ? request.body : null,
+         redirect: 'follow',
+       });
+       return fetch(newRequest);
+     },
+   };
+   ```
+3. Copy your Worker URL (`https://your-worker.workers.dev`) and set it as `TESLA_AUTH_BASE` in your production environment variables.
 
-On first boot Caddy will request a Let's Encrypt cert for `$PUBLIC_DOMAIN`.
-The DNS record must already resolve to the host, and ports 80 + 443 must be
-reachable from the public internet (Let's Encrypt's HTTP-01 challenge runs on
-port 80).
+### 3. GitHub Actions Secrets
 
-Once up:
+Add the following Secrets and Variables to your GitHub Repository (`Settings -> Secrets and variables -> Actions`):
 
-- `https://charging.clankersystems.com/health` returns `{"ok": true}`
-- `https://charging.clankersystems.com/docs` serves the OpenAPI explorer
+**Variables (`vars`)**
+- `DROPLET_DOMAIN`: The domain of your droplet (e.g., `api.charging.yourdomain.com`).
 
-Tables are auto-created on startup via SQLAlchemy `metadata.create_all`. For
-production, swap in Alembic migrations (see *Roadmap* below).
+**Secrets (`secrets`)**
+- `DROPLET_SSH_KEY`: The raw private SSH key to access your droplet as root.
+- `GOOGLE_CREDENTIALS_JSON`: The raw contents of your Google Service Account JSON.
+- `APPSTORE_PRIVATE_KEY_P8`: The raw contents of your Apple App Store Connect P8 key.
+- `PROD_ENV_FILE`: The full contents of your `.env` file containing database credentials, encryption keys, and Tesla API tokens. Example:
+  ```env
+  DATABASE_URL=postgresql+asyncpg://do_user:do_password@db-host:25060/teslacharger?ssl=require
+  PUBLIC_DOMAIN=api.charging.yourdomain.com
+  ACME_EMAIL=your-email@example.com
+  TOKEN_ENCRYPTION_KEY=<random_64_char_string>
+  SESSION_JWT_SECRET=<random_64_char_string>
+  TESLA_CLIENT_ID=<your_client_id>
+  TESLA_CLIENT_SECRET=<your_client_secret>
+  TESLA_REDIRECT_URI=https://api.charging.yourdomain.com/callback
+  TESLA_AUTH_BASE=https://your-worker.workers.dev
+  APPSTORE_BUNDLE_ID=com.clankersystems.charging
+  APPSTORE_ISSUER_ID=your_issuer_id
+  APPSTORE_KEY_ID=your_key_id
+  APPSTORE_USE_SANDBOX=False
+  PLAY_PACKAGE_NAME=com.clankersystems.charging
+  ```
 
-### 3. Run the mobile app
+### 4. Deploy
 
-```bash
-cd mobile
-npm install
-EXPO_PUBLIC_API_BASE=https://charging.clankersystems.com npx expo start
-```
-
-Press `i` for the iOS simulator or `a` for Android. Scan the QR code in
-Expo Go to run on a physical device (note: native IAP requires an EAS dev
-client, not Expo Go).
+Any push to the `main` branch will automatically:
+1. Copy the codebase to your droplet via SCP.
+2. Inject your `.env` and credential files securely.
+3. Build and restart the Docker containers.
 
 ---
 
-## Tesla setup
+## Tesla Setup & Telemetry
 
-This app uses the **Tesla Fleet API**, not the older third-party "ownerapi"
-flow (which Tesla has retired).
+This app uses the **Tesla Fleet API** with Fleet Telemetry for real-time, low-latency streaming of vehicle state without polling.
 
 1. Sign up at <https://developer.tesla.com/>.
-2. Create an app. Under **Allowed Redirect URIs** register:
-   `https://charging.clankersystems.com/auth/tesla/callback`
-3. Request the scopes:
-   `openid offline_access vehicle_device_data vehicle_charging_cmds vehicle_cmds`
-4. Copy the client id and secret into `.env`.
-5. Pick the regional Fleet API base — NA/APAC: `fleet-api.prd.na.vn.cloud.tesla.com`,
-   EU/MEA: `fleet-api.prd.eu.vn.cloud.tesla.com` — and set `TESLA_API_BASE`.
+2. Create an app. Under **Allowed Redirect URIs** register your callback (e.g., `https://api.charging.yourdomain.com/callback`).
+3. Request the scopes: `openid offline_access vehicle_device_data vehicle_location vehicle_charging_cmds vehicle_cmds`.
+4. Copy the client id and secret into your `PROD_ENV_FILE` secret.
+5. Generate a private key (`com.tesla.3p.private-key.pem`) and derive a public key. The public key must be hosted at `https://your-domain/.well-known/appspecific/com.tesla.3p.public-key.pem`.
+6. Once deployed, run the partner registration script on your droplet to register your domain with Tesla:
+   ```bash
+   docker compose -f docker-compose.prod.yml exec backend python register_partner.py
+   ```
 
-> **Vehicle-command signing.** Tesla now requires post-2021 vehicles to receive
-> commands through the `vehicle-command` HTTP proxy after pairing a virtual key.
-> If `charge_start` / `charge_stop` returns 412 or "vehicle requires key pairing",
-> deploy the Go [`vehicle-command`](https://github.com/teslamotors/vehicle-command)
-> binary as a sidecar and point `TESLA_API_BASE` at it. Pre-2021 Model S/X and
-> some other models still accept direct Fleet REST commands.
-
----
-
-## Authentication model
-
-There are two distinct tokens in the system:
-
-| Token                 | Issued by | Stored where           | Lifetime  | Purpose                                |
-| --------------------- | --------- | ---------------------- | --------- | -------------------------------------- |
-| Session JWT (HS256)   | backend   | mobile `SecureStore`   | 30 days   | Authenticates the mobile app → backend |
-| Tesla refresh token   | Tesla     | postgres, AES-256-GCM  | months    | Lets the backend mint Tesla access tokens |
-| Tesla access token    | Tesla     | postgres, AES-256-GCM  | 8 hours   | Bearer for Fleet API calls             |
-
-The mobile app generates a UUID on first install (stored in `SecureStore`) and
-trades it for a session JWT at `POST /v1/auth/device`. That JWT is sent on
-every subsequent request as `Authorization: Bearer …`.
-
-The Tesla OAuth flow:
-
-1. App calls `POST /auth/tesla/start` → backend mints a PKCE pair, persists
-   `(state, code_verifier)` bound to the user, returns the Tesla `authorize_url`.
-2. App opens that URL in a WebBrowser session.
-3. After login, Tesla redirects to
-   `https://charging.clankersystems.com/auth/tesla/callback?code=…&state=…`.
-4. The callback handler looks up the PKCE row by `state`, exchanges the code +
-   verifier for tokens, encrypts and stores them, then issues a 302 to
-   `teslacharger://auth?ok=1`.
-5. The mobile app's deep-link handler routes back to `/dashboard`.
-
-Tesla refresh happens transparently in `tesla.get_access_token()` — every
-Fleet API call goes through it.
-
----
-
-## Backend HTTP surface
-
-All routes return JSON. Routes under `/v1/*` require `Authorization: Bearer …`.
-
-| Verb   | Path                          | Description                                           |
-| ------ | ----------------------------- | ----------------------------------------------------- |
-| GET    | `/health`                     | Liveness probe                                        |
-| GET    | `/docs`                       | OpenAPI explorer                                      |
-| POST   | `/v1/auth/device`             | Register/lookup device id, return session JWT         |
-| POST   | `/auth/tesla/start`           | Begin Tesla OAuth, returns `authorize_url`            |
-| GET    | `/auth/tesla/callback`        | OAuth redirect target (302 → deep link)               |
-| POST   | `/auth/tesla/unlink`          | Forget stored Tesla tokens                            |
-| GET    | `/v1/regions`                 | Nord Pool delivery areas                              |
-| GET    | `/v1/settings`                | Current user settings                                 |
-| PUT    | `/v1/settings`                | Update region / threshold / auto_charge_enabled       |
-| GET    | `/v1/price`                   | Current Nord Pool price for the user's region         |
-| GET    | `/v1/dashboard`               | One-shot bundle: settings + vehicle + charge + price  |
-| POST   | `/v1/charge/start`            | Manual charge start                                   |
-| POST   | `/v1/charge/stop`             | Manual charge stop                                    |
-| POST   | `/v1/charge/wake`             | Wake the vehicle                                      |
-| GET    | `/v1/subscription`            | Current subscription status                           |
-| POST   | `/v1/subscription/verify`     | Submit an IAP receipt; backend validates & persists   |
+When a user authenticates in the app, the backend automatically uses the `vehicle-command` proxy to send a `fleet_telemetry_config` payload to the vehicle, telling it to start streaming data to your `fleet-telemetry` container.
 
 ---
 
 ## Auto-charging (Pro tier)
 
-`app/scheduler.py` registers an asyncio task on startup that runs every
-`SCHEDULER_INTERVAL_SECONDS` (default 300). Each tick:
+`app/scheduler.py` registers an asyncio task on startup that runs every `SCHEDULER_INTERVAL_SECONDS` (default 300). Each tick:
 
-1. Selects users where `auto_charge_enabled` AND a Tesla account is linked AND
-   the subscription row is `active`.
+1. Selects users where `auto_charge_enabled` AND a Tesla account is linked AND the subscription row is `active`.
 2. For each, fetches the current Nord Pool price for their region.
-3. Fetches `charge_state` from Tesla.
+3. Fetches `charge_state` from the local database (which is constantly updated by the Fleet Telemetry MQTT stream).
 4. Decision matrix:
    - plugged in + price ≤ threshold + not currently charging → `charge_start`
    - plugged in + price > threshold + currently charging → `charge_stop`
@@ -222,64 +184,20 @@ Free-tier users are excluded — they get manual controls only.
 
 ---
 
-## Subscriptions (€4/mo)
+## Subscriptions
 
-Both store integrations follow the same pattern: the client buys, sends the
-receipt to `POST /v1/subscription/verify`, and the backend authoritatively
-decides whether to flip `subscription.active`.
+Both store integrations follow the same pattern: the client buys via `react-native-iap`, sends the receipt to `POST /v1/subscription/verify`, and the backend authoritatively decides whether to flip `subscription.active`.
 
-The current `subscriptions.py` is a structured stub — it accepts any non-empty
-receipt while `STUB_ALLOW_ALL = True`. To wire in real verification:
-
-- **iOS** — App Store Server API. Build a JWT with the P8 key
-  (`APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`, `APPSTORE_BUNDLE_ID`), POST to
-  `/inApps/v1/transactions/{transactionId}`, then read `expiresDate`.
-- **Android** — Play Developer API. Load the service-account JSON
-  (`PLAY_SERVICE_ACCOUNT_JSON_PATH`), request a token for
-  `androidpublisher` scope, GET
-  `/applications/{package}/purchases/subscriptionsv2/tokens/{purchaseToken}`,
-  then read `lineItems[*].expiryTime`.
-
-Flip `STUB_ALLOW_ALL = False` once both are live. If a subscription lapses,
-`auto_charge_enabled` is automatically cleared on the next verify.
+- **Android** — The backend uses the `google-auth` library and the injected Google Service Account JSON to exchange tokens and verify the subscription expiration time via the Play Developer API.
+- **iOS** — To wire in real verification, build a JWT with the P8 key (`APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`, `APPSTORE_BUNDLE_ID`), POST to `/inApps/v1/transactions/{transactionId}`, then read `expiresDate`. (Currently uses a stub verifier if `STUB_ALLOW_ALL = True`).
 
 ---
 
 ## Price provider
 
-Default: Nord Pool's public `dataportal-api`, day-ahead prices in EUR/MWh,
-divided by 1000 to yield EUR/kWh. Free, no auth, covers NO1–5, SE1–4, DK1–2,
-FI, EE, LV, LT.
+Default: Nord Pool's public `dataportal-api`, day-ahead prices in EUR/MWh, divided by 1000 to yield EUR/kWh. Free, no auth, covers NO1–5, SE1–4, DK1–2, FI, EE, LV, LT.
 
-Swap by setting `PRICE_PROVIDER` in `.env` and adding a branch in
-`prices.current_price()`. The `prices.REGIONS` list defines the choices the
-mobile app shows.
-
-> The original spec mentioned a "Norstat" electricity price API; that
-> doesn't appear to be a real product. Nord Pool is the closest match for the
-> region it covers. Replace if you have a different provider in mind.
-
----
-
-## Design system
-
-The mobile UI is built per the `interface-design` skill convention
-(<https://github.com/Dammyjay93/interface-design>). The chosen direction is
-**Precision & Density** — dark monochrome, single Tesla-red accent, borders
-over shadows, tabular numerics. All tokens live in `mobile/src/theme.ts`;
-the human-readable system spec is in `mobile/.interface-design/system.md`.
-
----
-
-## Roadmap before production
-
-- Replace `Base.metadata.create_all` with **Alembic** migrations.
-- Real IAP receipt verification (flip `STUB_ALLOW_ALL = False`).
-- Vehicle-command signing proxy for newer Teslas.
-- Per-user rate limiting on Tesla API calls (Fleet API has tight quotas).
-- Push notifications when auto-charging triggers.
-- Move the JWT secret to a real KMS, rotate `TOKEN_ENCRYPTION_KEY` via dual-key
-  envelope.
+Swap by setting `PRICE_PROVIDER` in `.env` and adding a branch in `prices.current_price()`. The `prices.REGIONS` list defines the choices the mobile app shows.
 
 ---
 

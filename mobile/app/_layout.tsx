@@ -32,6 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="region" options={{ title: 'Choose region' }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="connect" options={{ title: 'Connect Tesla' }} />
+        <Stack.Screen name="pairing" options={{ headerShown: false }} />
         <Stack.Screen name="dashboard" options={{ headerShown: false, title: 'Back' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Tesla Nord Pool Pro', headerBackTitle: 'Back' }} />

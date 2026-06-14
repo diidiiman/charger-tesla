@@ -16,7 +16,7 @@ export default function Connect() {
       if (url.includes('://auth')) {
         const parsed = Linking.parse(url);
         const ok = (parsed.queryParams?.ok as string) === '1';
-        if (ok) router.replace('/dashboard');
+        if (ok) router.replace('/pairing');
         else setError(`Tesla sign-in failed: ${parsed.queryParams?.error || 'unknown'}`);
       }
     });

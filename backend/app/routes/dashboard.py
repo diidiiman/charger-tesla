@@ -129,6 +129,42 @@ async def dashboard(
                 token = await tesla.get_access_token(db, user)
 
                 async def fetch_data():
+                    from ..models import VehicleState
+                    from sqlalchemy import select
+                    
+                    # 1. Try fetching from cached telemetry (VehicleState) first
+                    state_db = (
+                        await db.execute(
+                            select(VehicleState).where(VehicleState.vehicle_id == user.tesla.vehicle_vin)
+                        )
+                    ).scalar_one_or_none()
+                    
+                    # Determine if cached data is fresh (updated within the last 15 minutes)
+                    state_is_fresh = False
+                    if state_db and state_db.updated_at:
+                        time_diff = datetime.now(timezone.utc) - state_db.updated_at.replace(tzinfo=timezone.utc)
+                        if time_diff.total_seconds() < 900:
+                            state_is_fresh = True
+                            
+                    if state_is_fresh:
+                        return {
+                            "response": {
+                                "charge_state": {
+                                    "charging_state": state_db.charging_state,
+                                    "battery_level": state_db.battery_level,
+                                    "battery_range": float(state_db.battery_range) if state_db.battery_range else None,
+                                    "charger_power": float(state_db.charger_power) if state_db.charger_power else None,
+                                    "minutes_to_full_charge": state_db.minutes_to_full_charge,
+                                    "charge_limit_soc": state_db.charge_limit_soc,
+                                },
+                                "drive_state": {
+                                    "latitude": float(state_db.latitude) if state_db.latitude else None,
+                                    "longitude": float(state_db.longitude) if state_db.longitude else None,
+                                }
+                            }
+                        }
+
+                    # 2. Fallback to API polling for pre-2021 vehicles or if telemetry is stale
                     try:
                         return await tesla.vehicle_data(token, user.tesla.vehicle_id)
                     except ValueError:

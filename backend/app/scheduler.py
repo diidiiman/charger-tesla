@@ -50,30 +50,66 @@ async def _evaluate_user_hourly(
 
     # Price crossed the threshold!
     try:
-        token = await tesla.get_access_token(session, user)
-        state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-    except ValueError:
-        log.info("vehicle asleep for user=%s, attempting to wake", user.id)
-        try:
-            await tesla.wake_up(token, user.tesla.vehicle_id)
-            for _ in range(6):
-                await asyncio.sleep(5)
+        from .models import VehicleState
+        
+        # 1. Try fetching from cached telemetry (VehicleState) first
+        state_db = (
+            await session.execute(
+                select(VehicleState).where(VehicleState.vehicle_id == user.tesla.vehicle_vin)
+            )
+        ).scalar_one_or_none()
+        
+        # Determine if cached data is fresh (updated within the last 15 minutes)
+        state_is_fresh = False
+        if state_db and state_db.updated_at:
+            time_diff = datetime.now(timezone.utc) - state_db.updated_at.replace(tzinfo=timezone.utc)
+            if time_diff.total_seconds() < 900:
+                state_is_fresh = True
+
+        if state_is_fresh:
+            # Reconstruct the expected response structure from the DB model
+            resp = {
+                "charge_state": {
+                    "charging_state": state_db.charging_state,
+                    "battery_level": state_db.battery_level,
+                },
+                "drive_state": {
+                    "latitude": float(state_db.latitude) if state_db.latitude else None,
+                    "longitude": float(state_db.longitude) if state_db.longitude else None,
+                }
+            }
+            token = await tesla.get_access_token(session, user) # We still need the token for sending start/stop commands
+        else:
+            # 2. Fallback to API polling for pre-2021 vehicles or if telemetry is stale
+            token = await tesla.get_access_token(session, user)
+            try:
+                state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
+            except ValueError:
+                log.info("vehicle asleep for user=%s, attempting to wake", user.id)
                 try:
-                    state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-                    break
-                except ValueError:
-                    pass
-            else:
-                log.info("vehicle failed to wake for user=%s", user.id)
+                    await tesla.wake_up(token, user.tesla.vehicle_id)
+                    for _ in range(6):
+                        await asyncio.sleep(5)
+                        try:
+                            state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
+                            break
+                        except ValueError:
+                            pass
+                    else:
+                        log.info("vehicle failed to wake for user=%s", user.id)
+                        return
+                except Exception as e:
+                    log.warning("failed to wake vehicle for user=%s: %s", user.id, e)
+                    return
+            except Exception as e:
+                log.warning("vehicle_data failed for user=%s: %s", user.id, e)
                 return
-        except Exception as e:
-            log.warning("failed to wake vehicle for user=%s: %s", user.id, e)
-            return
+            resp = (state or {}).get("response") or {}
+
     except Exception as e:
-        log.warning("vehicle_data failed for user=%s: %s", user.id, e)
+        log.warning("failed to fetch vehicle state for user=%s: %s", user.id, e)
         return
 
-    resp = (state or {}).get("response") or {}
     charge_data = resp.get("charge_state") or resp
     location_data = resp.get("drive_state") or {}
 

@@ -13,6 +13,7 @@ DOMAIN = os.environ.get("PUBLIC_DOMAIN", "api.charging.clankersystems.com")
 
 
 async def main():
+    headers = {"User-Agent": "TeslaCharger/1.0.0"}
     async with httpx.AsyncClient() as client:
         print("Fetching Partner Token...")
         # 1. Fetch Partner Token
@@ -23,7 +24,7 @@ async def main():
             "audience": AUDIENCE,
             "scope": "openid vehicle_device_data vehicle_location vehicle_cmds vehicle_charging_cmds",
         }
-        res = await client.post(AUTH_URL, data=data)
+        res = await client.post(AUTH_URL, data=data, headers=headers)
         if res.status_code >= 400:
             print("Failed to get partner token:", res.status_code, res.text)
             return
@@ -33,9 +34,13 @@ async def main():
 
         print(f"Registering domain: {DOMAIN}")
         # 2. Register Partner Account
+        auth_headers = {
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "TeslaCharger/1.0.0",
+        }
         reg_res = await client.post(
             f"{AUDIENCE}/api/1/partner_accounts",
-            headers={"Authorization": f"Bearer {token}"},
+            headers=auth_headers,
             json={"domain": DOMAIN},
         )
 

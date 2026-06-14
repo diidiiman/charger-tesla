@@ -20,10 +20,12 @@ log = logging.getLogger(__name__)
 
 
 async def _evaluate_user(
-    session, user: User, now: datetime = None
+    session, user: User, now: datetime = None, prev_hour_time: datetime = None
 ) -> None:
     if now is None:
         now = datetime.now(timezone.utc)
+    if prev_hour_time is None:
+        prev_hour_time = now - timedelta(hours=1)
 
     is_pro = user.subscription and user.subscription.active
     auto_charge = user.auto_charge_enabled and is_pro
@@ -38,29 +40,93 @@ async def _evaluate_user(
 
     try:
         current_data = await prices.current_price(session, user.region, now)
+        prev_data = await prices.current_price(session, user.region, prev_hour_time)
         current_val = current_data["price"]
+        prev_val = prev_data["price"]
         if user.vat_included:
             multiplier = prices.get_vat_multiplier(user.region)
             current_val *= multiplier
+            prev_val *= multiplier
     except Exception as e:
         log.warning("price fetch failed for user=%s: %s", user.id, e)
         return
 
     threshold = float(user.threshold_price)
     is_cheap = current_val <= threshold
+    was_cheap = prev_val <= threshold
 
     try:
         from .models import VehicleState
         
-        # Only use cached telemetry. No REST API polling.
+        # 1. Try fetching from cached telemetry (VehicleState)
         state_db = (
             await session.execute(
                 select(VehicleState).where(VehicleState.vehicle_id == user.tesla.vehicle_vin)
             )
         ).scalar_one_or_none()
         
-        if not state_db:
-            return # No telemetry data
+        state_is_fresh = False
+        if state_db and state_db.updated_at:
+            time_diff = datetime.now(timezone.utc) - state_db.updated_at.replace(tzinfo=timezone.utc)
+            if time_diff.total_seconds() < 900:
+                state_is_fresh = True
+                
+        token = await tesla.get_access_token(session, user)
+
+        if not state_is_fresh:
+            # 2. Fallback to API polling (For pre-2021 cars or broken telemetry)
+            # Only poll if the price just crossed the threshold to save massive API costs!
+            if is_cheap == was_cheap:
+                return # Skip polling
+                
+            try:
+                state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
+            except ValueError:
+                # Vehicle is asleep
+                if not is_cheap:
+                    return # Expensive, let it sleep (it's not charging)
+                    
+                # It's cheap and price just dropped. Check if we think it's already full.
+                if state_db and state_db.battery_level and state_db.charge_limit_soc:
+                    if state_db.battery_level >= state_db.charge_limit_soc:
+                        return # Already full, let it sleep
+                        
+                log.info("vehicle asleep for user=%s, price dropped, attempting to wake", user.id)
+                try:
+                    await tesla.wake_up(token, user.tesla.vehicle_id)
+                    for _ in range(6):
+                        await asyncio.sleep(5)
+                        try:
+                            state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
+                            break
+                        except ValueError:
+                            pass
+                    else:
+                        log.info("vehicle failed to wake for user=%s", user.id)
+                        return
+                except Exception as e:
+                    log.warning("failed to wake vehicle for user=%s: %s", user.id, e)
+                    return
+            except Exception as e:
+                log.warning("vehicle_data failed for user=%s: %s", user.id, e)
+                return
+                
+            resp = (state or {}).get("response") or {}
+            charge_data = resp.get("charge_state") or resp
+            location_data = resp.get("drive_state") or {}
+            
+            # Cache the polled state so we don't wake it unnecessarily next time
+            if not state_db:
+                state_db = VehicleState(vehicle_id=user.tesla.vehicle_vin)
+                session.add(state_db)
+            state_db.charging_state = charge_data.get("charging_state")
+            state_db.battery_level = charge_data.get("battery_level")
+            state_db.charge_limit_soc = charge_data.get("charge_limit_soc")
+            if "latitude" in location_data:
+                state_db.latitude = location_data["latitude"]
+            if "longitude" in location_data:
+                state_db.longitude = location_data["longitude"]
+            await session.commit()
             
         charging_state = state_db.charging_state
         plugged_in = charging_state and charging_state != "Disconnected"

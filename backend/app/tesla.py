@@ -201,9 +201,12 @@ async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:
     # Send request directly to our local vehicle-command-proxy
     async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
         r = await client.post(
-            f"https://command-proxy:4443/api/1/vehicles/{vehicle_vin}/fleet_telemetry_config",
+            "https://command-proxy:4443/api/1/vehicles/fleet_telemetry_config",
             headers={"authorization": f"Bearer {access_token}"},
-            json={"config": payload},
+            json={
+                "vins": [vehicle_vin],
+                "config": payload
+            },
         )
     if r.status_code >= 400:
         raise RuntimeError(f"Telemetry config failed: {r.status_code} {r.text}")

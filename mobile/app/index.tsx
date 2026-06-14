@@ -35,8 +35,9 @@ export default function Entry() {
 
       setNext('/dashboard');
     } catch (e: any) {
-      if (e.status === 401 && String(e.message).toLowerCase().includes('user not found')) {
-        console.warn('user not found on backend, will re-register on next mount');
+      const isAuthError = e.status === 401 && (String(e.message).toLowerCase().includes('user not found') || String(e.message).toLowerCase().includes('invalid session'));
+      if (isAuthError) {
+        console.warn('auth error on backend, will re-register on next mount');
         return; // api.ts handles clearing session and router.replace('/')
       }
       console.warn('bootstrap failed', e);

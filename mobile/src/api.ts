@@ -25,7 +25,8 @@ async function req<T>(method: string, path: string, body?: unknown, auth = true)
   try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
   if (!res.ok) {
     const detailText = json?.detail || json?.error || `request failed: ${res.status}`;
-    if (res.status === 401 && String(detailText).toLowerCase().includes('user not found')) {
+    const isAuthError = res.status === 401 && (String(detailText).toLowerCase().includes('user not found') || String(detailText).toLowerCase().includes('invalid session'));
+    if (isAuthError) {
       await session.clear();
       router.replace('/');
     }

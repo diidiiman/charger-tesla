@@ -11,6 +11,7 @@ export default function Settings() {
   const [threshold, setThreshold] = useState('');
   const [vatIncluded, setVatIncluded] = useState(true);
   const [priceChangeReminder, setPriceChangeReminder] = useState(true);
+  const [autoCharge, setAutoCharge] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,7 @@ export default function Settings() {
         if (s.threshold_price != null) setThreshold(s.threshold_price.toString());
         if (s.vat_included != null) setVatIncluded(s.vat_included);
         if (s.price_change_reminder != null) setPriceChangeReminder(s.price_change_reminder);
+        if (s.auto_charge_enabled != null) setAutoCharge(s.auto_charge_enabled);
         if (s.units != null) setUnits(s.units as 'metric' | 'imperial');
       } catch (e: any) { setError(e.message); }
     })();
@@ -39,6 +41,7 @@ export default function Settings() {
         threshold_price: Number.isFinite(t) ? t : undefined,
         vat_included: vatIncluded,
         price_change_reminder: priceChangeReminder,
+        auto_charge_enabled: autoCharge,
         units,
       });
       setSettings(updated);
@@ -102,8 +105,13 @@ export default function Settings() {
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>
-          <Label>Notifications</Label>
+          <Label>Notifications & Automation</Label>
           <View style={{ marginTop: theme.space.md }}>
+            <Pressable onPress={() => setAutoCharge(!autoCharge)} style={[styles.row, { paddingVertical: theme.space.xs }]}>
+              <Body>Enable Auto-Charging</Body>
+              <View style={[styles.checkbox, autoCharge && styles.checkboxActive]} />
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: theme.border.subtle, marginVertical: theme.space.xs }} />
             <Pressable onPress={() => setPriceChangeReminder(!priceChangeReminder)} style={[styles.row, { paddingVertical: theme.space.xs }]}>
               <Body>Price change charging reminder</Body>
               <View style={[styles.checkbox, priceChangeReminder && styles.checkboxActive]} />

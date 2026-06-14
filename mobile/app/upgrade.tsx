@@ -106,15 +106,6 @@ export default function Upgrade() {
     finally { setBusy(false); }
   }
 
-  async function enableAuto() {
-    setBusy(true); setError(null);
-    try {
-      await api.putSettings({ auto_charge_enabled: true });
-      setStatus({ ...(status as SubscriptionStatus), active: true });
-    } catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
-  }
-
   async function cancelPlan() {
     setBusy(true); setError(null);
     try {
@@ -149,10 +140,7 @@ export default function Upgrade() {
             <Button title="Restore purchases" variant="ghost" loading={busy} onPress={restore} />
           </>
         ) : (
-          <>
-            <Button title="Enable auto-charging" variant="primary" loading={busy} onPress={enableAuto} />
-            <Button title="Cancel Pro plan" variant="ghost" loading={busy} onPress={cancelPlan} />
-          </>
+          <Button title="Cancel Pro plan" variant="ghost" loading={busy} onPress={cancelPlan} />
         )}
       </View>
     </View>

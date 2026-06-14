@@ -30,6 +30,7 @@
       "expo-secure-store",
       "expo-asset",
       "expo-web-browser",
+      "react-native-iap",
       [
         "expo-build-properties",
         {

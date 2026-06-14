@@ -37,11 +37,14 @@ services:
       context: ./backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      - PLAY_SERVICE_ACCOUNT_JSON_PATH=/app/google-credentials.json
     depends_on:
       mqtt:
         condition: service_started
     volumes:
       - ./backend/com.tesla.3p.public-key.pem:/app/com.tesla.3p.public-key.pem:ro
+      - ./backend/google-credentials.json:/app/google-credentials.json:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
 
 volumes:

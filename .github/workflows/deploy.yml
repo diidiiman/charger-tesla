@@ -23,5 +23,8 @@ jobs:
             # Note: The droplet must have its deploy key added to GitHub for this to work
             git pull origin main
             
+            # Write Google Service Account JSON from secret
+            echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > backend/google-credentials.json
+            
             # Rebuild and restart the production containers
             docker compose -f docker-compose.prod.yml up -d --build

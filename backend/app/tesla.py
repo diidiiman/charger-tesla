@@ -191,10 +191,10 @@ async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:
         "port": 4443,
         "ca": ca_pem,
         "fields": {
-            "Location": {"interval_seconds": 0},
-            "ChargeState": {"interval_seconds": 0},
-            "DetailedChargeState": {"interval_seconds": 0},
-            "Soc": {"interval_seconds": 0},
+            "Location": {"interval_seconds": 60},
+            "ChargeState": {"interval_seconds": 60},
+            "DetailedChargeState": {"interval_seconds": 60},
+            "Soc": {"interval_seconds": 60},
         }
     }
     

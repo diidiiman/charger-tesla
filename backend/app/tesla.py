@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import secrets
+import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -116,13 +117,28 @@ async def _api(
     method: str, access_token: str, path: str, json: dict | None = None
 ) -> dict:
     s = get_settings()
+    base_url = s.tesla_api_base
+    
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.request(
             method,
-            f"{s.tesla_api_base}{path}",
+            f"{base_url}{path}",
             headers={"authorization": f"Bearer {access_token}", "User-Agent": "TeslaCharger/1.0.0"},
             json=json,
         )
+        
+        # If the API tells us the vehicle/user belongs to a different region, automatically fallback and retry
+        if r.status_code in (401, 403, 404, 412, 421):
+            match = re.search(r'(https://fleet-api\.prd\.[a-z]+\.vn\.cloud\.tesla\.com)', r.text)
+            if match and match.group(1) != base_url:
+                base_url = match.group(1)
+                r = await client.request(
+                    method,
+                    f"{base_url}{path}",
+                    headers={"authorization": f"Bearer {access_token}", "User-Agent": "TeslaCharger/1.0.0"},
+                    json=json,
+                )
+
     if r.status_code == 412 or r.status_code == 408:
         if "must be registered" in r.text.lower():
             raise RuntimeError(f"Tesla API {r.status_code} on {path}: {r.text}")

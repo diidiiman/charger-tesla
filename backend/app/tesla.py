@@ -55,7 +55,7 @@ async def _token_request(form: dict) -> dict:
         r = await client.post(
             f"{s.tesla_auth_base}/oauth2/v3/token",
             data=form,
-            headers={"content-type": "application/x-www-form-urlencoded"},
+            headers={"content-type": "application/x-www-form-urlencoded", "User-Agent": "TeslaCharger/1.0.0"},
         )
     if r.status_code >= 400:
         raise RuntimeError(f"Tesla auth {r.status_code}: {r.text}")
@@ -120,7 +120,7 @@ async def _api(
         r = await client.request(
             method,
             f"{s.tesla_api_base}{path}",
-            headers={"authorization": f"Bearer {access_token}"},
+            headers={"authorization": f"Bearer {access_token}", "User-Agent": "TeslaCharger/1.0.0"},
             json=json,
         )
     if r.status_code == 412 or r.status_code == 408:

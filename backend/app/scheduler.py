@@ -19,9 +19,18 @@ from .notifications import send_push_notification
 log = logging.getLogger(__name__)
 
 
-async def _evaluate_user_hourly(
-    session, user: User, now: datetime, prev_hour: datetime
+async def _evaluate_user(
+    session, user: User, now: datetime = None
 ) -> None:
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    is_pro = user.subscription and user.subscription.active
+    auto_charge = user.auto_charge_enabled and is_pro
+
+    if not auto_charge:
+        return
+
     if not user.region or user.threshold_price is None:
         return
     if user.tesla is None or not user.tesla.vehicle_id:
@@ -29,187 +38,111 @@ async def _evaluate_user_hourly(
 
     try:
         current_data = await prices.current_price(session, user.region, now)
-        prev_data = await prices.current_price(session, user.region, prev_hour)
         current_val = current_data["price"]
-        prev_val = prev_data["price"]
         if user.vat_included:
             multiplier = prices.get_vat_multiplier(user.region)
             current_val *= multiplier
-            prev_val *= multiplier
     except Exception as e:
         log.warning("price fetch failed for user=%s: %s", user.id, e)
         return
 
     threshold = float(user.threshold_price)
-    was_cheap = prev_val <= threshold
     is_cheap = current_val <= threshold
 
-    # If the price didn't cross the threshold, we do nothing to save API calls
-    if was_cheap == is_cheap:
-        return
-
-    # Price crossed the threshold!
     try:
         from .models import VehicleState
         
-        # 1. Try fetching from cached telemetry (VehicleState) first
+        # Only use cached telemetry. No REST API polling.
         state_db = (
             await session.execute(
                 select(VehicleState).where(VehicleState.vehicle_id == user.tesla.vehicle_vin)
             )
         ).scalar_one_or_none()
         
-        # Determine if cached data is fresh (updated within the last 15 minutes)
-        state_is_fresh = False
-        if state_db and state_db.updated_at:
-            time_diff = datetime.now(timezone.utc) - state_db.updated_at.replace(tzinfo=timezone.utc)
-            if time_diff.total_seconds() < 900:
-                state_is_fresh = True
+        if not state_db:
+            return # No telemetry data
+            
+        charging_state = state_db.charging_state
+        plugged_in = charging_state and charging_state != "Disconnected"
+        currently_charging = charging_state in ("Charging", "Starting", "Preparing")
 
-        if state_is_fresh:
-            # Reconstruct the expected response structure from the DB model
-            resp = {
-                "charge_state": {
-                    "charging_state": state_db.charging_state,
-                    "battery_level": state_db.battery_level,
-                },
-                "drive_state": {
-                    "latitude": float(state_db.latitude) if state_db.latitude else None,
-                    "longitude": float(state_db.longitude) if state_db.longitude else None,
-                }
-            }
-            token = await tesla.get_access_token(session, user) # We still need the token for sending start/stop commands
-        else:
-            # 2. Fallback to API polling for pre-2021 vehicles or if telemetry is stale
-            token = await tesla.get_access_token(session, user)
-            try:
-                state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-            except ValueError:
-                log.info("vehicle asleep for user=%s, attempting to wake", user.id)
-                try:
-                    await tesla.wake_up(token, user.tesla.vehicle_id)
-                    for _ in range(6):
-                        await asyncio.sleep(5)
-                        try:
-                            state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-                            break
-                        except ValueError:
-                            pass
-                    else:
-                        log.info("vehicle failed to wake for user=%s", user.id)
-                        return
-                except Exception as e:
-                    log.warning("failed to wake vehicle for user=%s: %s", user.id, e)
-                    return
-            except Exception as e:
-                log.warning("vehicle_data failed for user=%s: %s", user.id, e)
-                return
-            resp = (state or {}).get("response") or {}
+        if not plugged_in:
+            return
 
-    except Exception as e:
-        log.warning("failed to fetch vehicle state for user=%s: %s", user.id, e)
-        return
-
-    charge_data = resp.get("charge_state") or resp
-    location_data = resp.get("drive_state") or {}
-
-    # Check geofence if home location is set
-    if user.home_latitude is not None and user.home_longitude is not None:
-        veh_lat = location_data.get("latitude")
-        veh_lon = location_data.get("longitude")
-        if veh_lat is not None and veh_lon is not None:
-            lat_diff = (veh_lat - float(user.home_latitude)) * 111000
-            lon_diff = (
-                (veh_lon - float(user.home_longitude))
-                * 111000
-                * math.cos(math.radians(float(user.home_latitude)))
-            )
-            distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
-            if distance_meters > 200:
-                log.info(
-                    "user=%s vehicle is not at home (distance: %.0fm)",
-                    user.id,
-                    distance_meters,
+        # Check geofence
+        if user.home_latitude is not None and user.home_longitude is not None:
+            if state_db.latitude is not None and state_db.longitude is not None:
+                lat_diff = (float(state_db.latitude) - float(user.home_latitude)) * 111000
+                lon_diff = (
+                    (float(state_db.longitude) - float(user.home_longitude))
+                    * 111000
+                    * math.cos(math.radians(float(user.home_latitude)))
                 )
+                distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
+                if distance_meters > 200:
+                    return
+            else:
                 return
-    else:
-        log.info("user=%s has no home location set, skipping auto-charge", user.id)
-        return
-
-    charging_state = charge_data.get("charging_state")
-    plugged_in = charging_state and charging_state != "Disconnected"
-    currently_charging = charging_state == "Charging"
-
-    if not plugged_in:
-        log.info("user=%s vehicle unplugged, skipping", user.id)
-        return
-
-    is_pro = user.subscription and user.subscription.active
-    auto_charge = user.auto_charge_enabled and is_pro
-
-    action = "skip"
-    detail = None
-
-    if is_cheap and not was_cheap:
-        # Price dropped
-        msg_title = "Electricity Price Dropped"
-        msg_body = f"Price is now {current_val:.4f} {user.currency}/kWh. "
-        if auto_charge and not currently_charging:
-            try:
-                await tesla.charge_start(token, user.tesla.vehicle_id)
-                action = "start"
-                msg_body += "Auto-charging started."
-            except Exception as e:
-                detail = f"start failed: {e!s:.200}"
-                msg_body += "Failed to auto-start charging."
-        elif currently_charging:
-            msg_body += "Vehicle is already charging."
         else:
-            msg_body += "Vehicle is plugged in."
+            return
 
-        if user.push_token and user.price_change_reminder:
-            asyncio.create_task(
-                send_push_notification(user.push_token, msg_title, msg_body)
-            )
+        action = "skip"
+        detail = None
+        msg_title = None
+        msg_body = None
 
-    elif was_cheap and not is_cheap:
-        # Price rose
-        msg_title = "Electricity Price Rose"
-        msg_body = f"Price is now {current_val:.4f} {user.currency}/kWh. "
-        if auto_charge and currently_charging:
+        if is_cheap and not currently_charging:
+            battery = state_db.battery_level or 0
+            limit = state_db.charge_limit_soc or 100
+            if battery < limit:
+                msg_title = "Charging Started"
+                msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). "
+                try:
+                    token = await tesla.get_access_token(session, user)
+                    await tesla.charge_start(token, user.tesla.vehicle_id)
+                    action = "start"
+                    msg_body += "Auto-charging started."
+                except Exception as e:
+                    detail = f"start failed: {e!s:.200}"
+                    msg_body += "Failed to auto-start charging."
+                
+                if user.push_token and user.price_change_reminder and action == "start":
+                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+
+        elif not is_cheap and currently_charging:
+            msg_title = "Charging Stopped"
+            msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). "
             try:
+                token = await tesla.get_access_token(session, user)
                 await tesla.charge_stop(token, user.tesla.vehicle_id)
                 action = "stop"
                 msg_body += "Auto-charging stopped."
             except Exception as e:
                 detail = f"stop failed: {e!s:.200}"
                 msg_body += "Failed to auto-stop charging."
-        elif not currently_charging:
-            msg_body += "Vehicle is not charging."
-        else:
-            msg_body += "Please stop charging manually."
+            
+            if user.push_token and user.price_change_reminder and action == "stop":
+                asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
 
-        if user.push_token and user.price_change_reminder:
-            asyncio.create_task(
-                send_push_notification(user.push_token, msg_title, msg_body)
+        if action != "skip" or detail is not None:
+            session.add(
+                ChargeEvent(
+                    user_id=user.id,
+                    action=action,
+                    price=current_val,
+                    threshold=threshold,
+                    detail=detail,
+                )
             )
+            await session.commit()
 
-    if action != "skip" or detail is not None:
-        session.add(
-            ChargeEvent(
-                user_id=user.id,
-                action=action,
-                price=current_val,
-                threshold=threshold,
-                detail=detail,
-            )
-        )
-        await session.commit()
+    except Exception as e:
+        log.warning("failed to evaluate vehicle state for user=%s: %s", user.id, e)
+        return
 
 
 async def _evaluate_all_users() -> None:
     now = datetime.now(timezone.utc)
-    prev_hour = now - timedelta(hours=1)
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -220,7 +153,7 @@ async def _evaluate_all_users() -> None:
         users = result.scalars().unique().all()
         for user in users:
             try:
-                await _evaluate_user_hourly(session, user, now, prev_hour)
+                await _evaluate_user(session, user, now)
             except Exception as e:
                 log.exception("evaluate_user failed: %s", e)
 

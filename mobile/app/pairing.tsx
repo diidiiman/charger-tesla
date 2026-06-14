@@ -24,7 +24,7 @@ export default function Pairing() {
             To automatically start and stop charging and stream telemetry data, modern Tesla vehicles (2021+) require you to approve this app as a "Virtual Key".
           </Body>
           <Body muted style={{ marginTop: theme.space.md }}>
-            Tapping the button below will open your official Tesla app to approve the connection. If you drive a pre-2021 Model S or X, you can safely skip this step.
+            Tapping the button below will open your official Tesla app to approve the connection. Note: This app requires a vehicle with MCU2 or newer that supports Fleet Telemetry. Older MCU1 vehicles are not supported.
           </Body>
         </Card>
 

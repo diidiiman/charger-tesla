@@ -6,7 +6,7 @@ import { api } from '../src/api';
 import { getOrCreateDeviceId, introSeen, session } from '../src/storage';
 import { theme } from '../src/theme';
 
-type NextRoute = '/intro' | '/login' | '/region' | '/connect' | '/dashboard' | null;
+type NextRoute = '/intro' | '/region' | '/connect' | '/dashboard' | null;
 
 export default function Entry() {
   const [next, setNext] = useState<NextRoute>(null);
@@ -18,8 +18,10 @@ export default function Entry() {
 
         let token = await session.get();
         if (!token) {
-          setNext('/login');
-          return;
+          const id = await getOrCreateDeviceId();
+          const r = await api.registerDevice(id);
+          await session.set(r.token);
+          token = r.token;
         }
 
         const settings = await api.getSettings();

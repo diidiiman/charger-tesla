@@ -29,7 +29,6 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="intro" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="region" options={{ title: 'Choose region' }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="connect" options={{ title: 'Connect Tesla' }} />

@@ -30,8 +30,6 @@
       "expo-secure-store",
       "expo-asset",
       "expo-web-browser",
-      "expo-apple-authentication",
-      "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
         {
@@ -42,7 +40,11 @@
       ]
     ],
     "extra": {
-      "apiBase": "${EXPO_PUBLIC_API_BASE}"
+      "apiBase": "${EXPO_PUBLIC_API_BASE}",
+      "router": {},
+      "eas": {
+        "projectId": "2cd8315b-9bbe-46db-942e-23854a5cc48e"
+      }
     }
   }
 }

@@ -81,10 +81,6 @@ export const api = {
   base: BASE,
   registerDevice: (device_id: string) =>
     req<{ token: string; user_id: number }>('POST', '/v1/auth/device', { device_id }, false),
-  authGoogle: (id_token: string, device_id?: string) =>
-    req<{ token: string; user_id: number }>('POST', '/v1/auth/google', { id_token, device_id }, false),
-  authApple: (id_token: string, device_id?: string) =>
-    req<{ token: string; user_id: number }>('POST', '/v1/auth/apple', { id_token, device_id }, false),
   regions: () => req<Region[]>('GET', '/v1/regions'),
   getSettings: () => req<UserSettings>('GET', '/v1/settings'),
   putSettings: (patch: Partial<UserSettings>) => req<UserSettings>('PUT', '/v1/settings', patch),

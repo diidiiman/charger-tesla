@@ -78,6 +78,16 @@ async def update_settings(
         user.auto_charge_enabled = body.auto_charge_enabled
     await db.commit()
     await db.refresh(user)
+
+    # Sync schedule if relevant fields are updated
+    if any(x is not None for x in [body.region, body.threshold_price, body.home_latitude, body.home_longitude, body.auto_charge_enabled]):
+        try:
+            from ..scheduler import sync_charge_schedule
+            await sync_charge_schedule(db, user)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("failed to sync charge schedule after settings update: %s", e)
+
     return _user_settings(user)
 
 

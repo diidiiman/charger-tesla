@@ -38,6 +38,13 @@ class VerifySubscriptionUseCase:
 
         await db.commit()
         await db.refresh(sub)
+        
+        # Sync schedule (either to set it up for a new pro plan, or to clear it if lapsed)
+        try:
+            from app.scheduler import sync_charge_schedule
+            await sync_charge_schedule(db, user)
+        except Exception:
+            pass
 
         return SubscriptionStatus(
             active=sub.active,

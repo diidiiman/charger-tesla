@@ -1,10 +1,7 @@
-"""Background task that re-evaluates each subscribed, auto-charge-enabled user's
-threshold against the current Nord Pool price and triggers start/stop accordingly.
-"""
-
 import asyncio
 import logging
 import math
+import zoneinfo
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
@@ -13,240 +10,165 @@ from sqlalchemy.orm import selectinload
 from . import prices, tesla
 from .config import get_settings
 from .db import SessionLocal
-from .models import ChargeEvent, Subscription, TeslaAccount, User
+from .models import Subscription, User
 from .notifications import send_push_notification
 
 log = logging.getLogger(__name__)
 
+REGION_TIMEZONES = {
+    "EE": "Europe/Tallinn",
+    "FI": "Europe/Helsinki",
+    "LT": "Europe/Vilnius",
+    "LV": "Europe/Riga",
+    "SE1": "Europe/Stockholm",
+    "SE2": "Europe/Stockholm",
+    "SE3": "Europe/Stockholm",
+    "SE4": "Europe/Stockholm",
+    "NO1": "Europe/Oslo",
+    "NO2": "Europe/Oslo",
+    "NO3": "Europe/Oslo",
+    "NO4": "Europe/Oslo",
+    "NO5": "Europe/Oslo",
+    "DK1": "Europe/Copenhagen",
+    "DK2": "Europe/Copenhagen",
+    "AT": "Europe/Vienna",
+    "BE": "Europe/Brussels",
+    "DE-LU": "Europe/Berlin",
+    "FR": "Europe/Paris",
+    "NL": "Europe/Amsterdam",
+}
 
-async def _evaluate_user(
-    session, user: User, now: datetime = None, prev_hour_time: datetime = None
-) -> None:
+async def sync_charge_schedule(session, user: User, now: datetime = None) -> None:
     if now is None:
         now = datetime.now(timezone.utc)
-    if prev_hour_time is None:
-        prev_hour_time = now - timedelta(hours=1)
 
     is_pro = user.subscription and user.subscription.active
     auto_charge = user.auto_charge_enabled and is_pro
 
-    if not user.region or user.threshold_price is None:
-        return
-    if user.tesla is None or not user.tesla.vehicle_id:
+    if not user.tesla or not user.tesla.vehicle_id:
         return
 
     try:
-        current_data = await prices.current_price(session, user.region, now)
-        prev_data = await prices.current_price(session, user.region, prev_hour_time)
-        current_val = current_data["price"]
-        prev_val = prev_data["price"]
-        if user.vat_included:
-            multiplier = prices.get_vat_multiplier(user.region)
-            current_val *= multiplier
-            prev_val *= multiplier
-    except Exception as e:
-        log.warning("price fetch failed for user=%s: %s", user.id, e)
-        return
-
-    threshold = float(user.threshold_price)
-    is_cheap = current_val <= threshold
-    was_cheap = prev_val <= threshold
-
-    try:
-        from .models import VehicleState
-        
-        # 1. Try fetching from cached telemetry (VehicleState)
-        state_db = (
-            await session.execute(
-                select(VehicleState).where(VehicleState.vehicle_id == user.tesla.vehicle_vin)
-            )
-        ).scalar_one_or_none()
-        
-        state_is_fresh = False
-        if state_db and state_db.updated_at:
-            time_diff = datetime.now(timezone.utc) - state_db.updated_at.replace(tzinfo=timezone.utc)
-            if time_diff.total_seconds() < 900:
-                state_is_fresh = True
-                
         token = await tesla.get_access_token(session, user)
+    except Exception as e:
+        log.warning("failed to get token for user=%s: %s", user.id, e)
+        return
 
-        if not state_is_fresh:
-            # 2. Fallback to API polling (For pre-2021 cars or broken telemetry)
-            # Only poll if the price just crossed the threshold to save massive API costs!
-            if is_cheap == was_cheap:
-                return # Skip polling
-                
-            try:
-                state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-            except ValueError:
-                # Vehicle is asleep
-                if not is_cheap:
-                    return # Expensive, let it sleep (it's not charging)
-                    
-                # It's cheap and price just dropped. Check if we think it's already full.
-                if state_db and state_db.battery_level and state_db.charge_limit_soc:
-                    if state_db.battery_level >= state_db.charge_limit_soc:
-                        return # Already full, let it sleep
-                        
-                log.info("vehicle asleep for user=%s, price dropped, attempting to wake", user.id)
+    # 1. Clear existing schedules if downgraded or missing data
+    if not auto_charge or user.threshold_price is None or not user.region or user.home_latitude is None or user.home_longitude is None:
+        try:
+            schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
+            if isinstance(schedules, dict) and schedules:
                 try:
                     await tesla.wake_up(token, user.tesla.vehicle_id)
-                    for _ in range(6):
-                        await asyncio.sleep(5)
-                        try:
-                            state = await tesla.vehicle_data(token, user.tesla.vehicle_id)
-                            break
-                        except ValueError:
-                            pass
-                    else:
-                        log.info("vehicle failed to wake for user=%s", user.id)
-                        return
-                except Exception as e:
-                    log.warning("failed to wake vehicle for user=%s: %s", user.id, e)
-                    return
-            except Exception as e:
-                log.warning("vehicle_data failed for user=%s: %s", user.id, e)
-                return
-                
-            resp = (state or {}).get("response") or {}
-            charge_data = resp.get("charge_state") or resp
-            location_data = resp.get("drive_state") or {}
-            
-            # Cache the polled state so we don't wake it unnecessarily next time
-            if not state_db:
-                state_db = VehicleState(vehicle_id=user.tesla.vehicle_vin)
-                session.add(state_db)
-            state_db.charging_state = charge_data.get("charging_state")
-            state_db.battery_level = charge_data.get("battery_level")
-            state_db.charge_limit_soc = charge_data.get("charge_limit_soc")
-            if "latitude" in location_data:
-                state_db.latitude = location_data["latitude"]
-            if "longitude" in location_data:
-                state_db.longitude = location_data["longitude"]
-            await session.commit()
-            
-        charging_state = state_db.charging_state
-        plugged_in = charging_state and charging_state != "Disconnected"
-        currently_charging = charging_state in ("Charging", "Starting", "Preparing")
-
-        if not plugged_in:
-            return
-
-        # Check geofence
-        if user.home_latitude is not None and user.home_longitude is not None:
-            if state_db.latitude is not None and state_db.longitude is not None:
-                lat_diff = (float(state_db.latitude) - float(user.home_latitude)) * 111000
-                lon_diff = (
-                    (float(state_db.longitude) - float(user.home_longitude))
-                    * 111000
-                    * math.cos(math.radians(float(user.home_latitude)))
-                )
-                distance_meters = math.sqrt(lat_diff**2 + lon_diff**2)
-                if distance_meters > 200:
-                    return
-            else:
-                return
-        else:
-            return
-
-        action = "skip"
-        detail = None
-        msg_title = None
-        msg_body = None
-
-        if is_cheap and not currently_charging:
-            battery = state_db.battery_level or 0
-            limit = state_db.charge_limit_soc or 100
-            if battery < limit:
-                if auto_charge:
-                    msg_title = "Charging Started"
-                    msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). "
-                    try:
-                        token = await tesla.get_access_token(session, user)
-                        await tesla.charge_start(token, user.tesla.vehicle_id)
-                        action = "start"
-                        msg_body += "Auto-charging started."
-                    except Exception as e:
-                        detail = f"start failed: {e!s:.200}"
-                        msg_body += "Failed to auto-start charging."
-                    
-                    if user.push_token and user.price_change_reminder and action == "start":
-                        asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
-                else:
-                    msg_title = "Price Dropped"
-                    msg_body = f"Price is cheap ({current_val:.4f} {user.currency}/kWh). Open the app to start charging."
-                    action = "notify_cheap"
-                    if user.push_token and user.price_change_reminder:
-                        asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
-
-        elif not is_cheap and currently_charging:
-            if auto_charge:
-                msg_title = "Charging Stopped"
-                msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). "
-                try:
-                    token = await tesla.get_access_token(session, user)
-                    await tesla.charge_stop(token, user.tesla.vehicle_id)
-                    action = "stop"
-                    msg_body += "Auto-charging stopped."
-                except Exception as e:
-                    detail = f"stop failed: {e!s:.200}"
-                    msg_body += "Failed to auto-stop charging."
-                
-                if user.push_token and user.price_change_reminder and action == "stop":
-                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
-            else:
-                msg_title = "Price Increased"
-                msg_body = f"Price is expensive ({current_val:.4f} {user.currency}/kWh). Open the app to stop charging."
-                action = "notify_expensive"
-                if user.push_token and user.price_change_reminder:
-                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
-
-        if action != "skip" or detail is not None:
-            session.add(
-                ChargeEvent(
-                    user_id=user.id,
-                    action=action,
-                    price=current_val,
-                    threshold=threshold,
-                    detail=detail,
-                )
-            )
-            await session.commit()
-
-    except Exception as e:
-        log.warning("failed to evaluate vehicle state for user=%s: %s", user.id, e)
+                    await asyncio.sleep(5)
+                except Exception:
+                    pass
+                for sched_id in schedules.keys():
+                    await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+        except Exception as e:
+            log.warning("failed to clear schedules for user=%s: %s", user.id, e)
         return
 
+    # 2. Fetch prices from now until end of tomorrow
+    tomorrow_end = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    stmt = select(prices.RegionPrice).where(
+        prices.RegionPrice.region == user.region,
+        prices.RegionPrice.valid_from >= now.replace(minute=0, second=0, microsecond=0),
+        prices.RegionPrice.valid_to <= tomorrow_end
+    ).order_by(prices.RegionPrice.valid_from)
+    
+    result = await session.execute(stmt)
+    region_prices = result.scalars().all()
 
-async def _evaluate_all_users() -> None:
-    now = datetime.now(timezone.utc)
+    # Apply VAT and threshold
+    multiplier = prices.get_vat_multiplier(user.region) if user.vat_included else 1.0
+    threshold = float(user.threshold_price)
 
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User)
-            .where(User.threshold_price.is_not(None))
-            .options(selectinload(User.tesla), selectinload(User.subscription))
-        )
-        users = result.scalars().unique().all()
-        for user in users:
+    cheap_hours = []
+    for p in region_prices:
+        val = p.price * multiplier
+        if val <= threshold:
+            cheap_hours.append(p)
+
+    # 3. Group into contiguous blocks
+    blocks = []
+    if cheap_hours:
+        current_block = [cheap_hours[0]]
+        for i in range(1, len(cheap_hours)):
+            if cheap_hours[i].valid_from == current_block[-1].valid_to:
+                current_block.append(cheap_hours[i])
+            else:
+                blocks.append(current_block)
+                current_block = [cheap_hours[i]]
+        blocks.append(current_block)
+
+    # 4. Clear existing schedules and send new ones
+    try:
+        schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
+        if isinstance(schedules, dict) and schedules:
             try:
-                await _evaluate_user(session, user, now)
-            except Exception as e:
-                log.exception("evaluate_user failed: %s", e)
-
-
-async def run_forever() -> None:
-    log.info("hourly scheduler running")
-    last_evaluated_hour = None
-    while True:
-        now = datetime.now(timezone.utc)
-        if last_evaluated_hour is not None and last_evaluated_hour != now.hour:
-            try:
-                await _evaluate_all_users()
+                await tesla.wake_up(token, user.tesla.vehicle_id)
+                await asyncio.sleep(5)
             except Exception:
-                log.exception("scheduler tick failed")
-        last_evaluated_hour = now.hour
-        await asyncio.sleep(60)
+                pass
+            for sched_id in schedules.keys():
+                await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+        
+        if not blocks:
+            return
+            
+        # If we have blocks to send, wake the car up
+        if not (isinstance(schedules, dict) and schedules):
+            try:
+                await tesla.wake_up(token, user.tesla.vehicle_id)
+                await asyncio.sleep(5)
+            except Exception:
+                pass
+
+        tz_str = REGION_TIMEZONES.get(user.region, "UTC")
+        tz = zoneinfo.ZoneInfo(tz_str)
+
+        for block in blocks:
+            start_dt = block[0].valid_from.astimezone(tz)
+            end_dt = block[-1].valid_to.astimezone(tz)
+
+            start_minutes = start_dt.hour * 60 + start_dt.minute
+            end_minutes = end_dt.hour * 60 + end_dt.minute
+
+            await tesla.add_charge_schedule(
+                access_token=token,
+                vehicle_id=user.tesla.vehicle_id,
+                days_of_week="all",
+                enabled=True,
+                lat=float(user.home_latitude),
+                lon=float(user.home_longitude),
+                start_time=start_minutes,
+                end_time=end_minutes,
+                one_time=True
+            )
+
+            if user.push_token and user.price_change_reminder:
+                msg_title = "Charging Schedule Set"
+                msg_body = f"Scheduled to charge from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
+                asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+
+    except Exception as e:
+        log.warning("failed to sync schedules for user=%s: %s", user.id, e)
+
+async def _sync_all_users(session: AsyncSession) -> None:
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        select(User)
+        .where(User.auto_charge_enabled == True)
+        .options(selectinload(User.tesla), selectinload(User.subscription))
+    )
+    users = result.scalars().unique().all()
+    for user in users:
+        try:
+            await sync_charge_schedule(session, user, now)
+        except Exception as e:
+            log.exception("sync_charge_schedule failed for user %s: %s", user.id, e)
 
 
 async def fetch_daily_prices_forever() -> None:
@@ -254,7 +176,6 @@ async def fetch_daily_prices_forever() -> None:
     last_fetched_date = None
     while True:
         now = datetime.now(timezone.utc)
-        # 15:00 EEST is UTC+3 in summer, UTC+2 in winter. 12:00 UTC covers both.
         # Run between 12:00 and 13:00 UTC
         if now.hour == 12 and last_fetched_date != now.date():
             try:
@@ -262,8 +183,12 @@ async def fetch_daily_prices_forever() -> None:
                     # Nord Pool day-ahead prices for tomorrow are published around 13:00 CET/CEST
                     target_date = now + timedelta(days=1)
                     await prices.fetch_and_store_prices(session, target_date)
+                    
+                    # Prices received, sync schedules for all enabled users
+                    await _sync_all_users(session)
+                    
                 last_fetched_date = now.date()
-                log.info("Successfully fetched prices for %s", target_date.date())
+                log.info("Successfully fetched prices and synced schedules for %s", target_date.date())
             except Exception as e:
                 log.exception("price fetch failed: %s", e)
 
@@ -287,7 +212,7 @@ async def verify_expired_subscriptions_forever() -> None:
                         select(Subscription).where(
                             Subscription.active == True,
                             Subscription.expires_at < now
-                        )
+                        ).options(selectinload(Subscription.user))
                     )
                     subs = result.scalars().all()
                     
@@ -302,6 +227,10 @@ async def verify_expired_subscriptions_forever() -> None:
                             
                             if not sub.active:
                                 log.info("Subscription officially lapsed for user_id=%s", sub.user_id)
+                                if sub.user:
+                                    sub.user.auto_charge_enabled = False
+                                    # Clear schedule
+                                    await sync_charge_schedule(session, sub.user, now)
                                 
                         except Exception as e:
                             log.warning("Failed to re-verify subscription for user_id=%s: %s", sub.user_id, e)

@@ -177,6 +177,51 @@ async def charge_stop(access_token: str, vehicle_id: str) -> dict:
     )
 
 
+async def add_charge_schedule(
+    access_token: str,
+    vehicle_id: str,
+    days_of_week: str | int,
+    enabled: bool,
+    lat: float,
+    lon: float,
+    start_time: int | None = None,
+    end_time: int | None = None,
+    one_time: bool | None = None,
+) -> dict:
+    payload = {
+        "days_of_week": days_of_week,
+        "enabled": enabled,
+        "lat": lat,
+        "lon": lon,
+    }
+    if start_time is not None:
+        payload["start_time"] = start_time
+    if end_time is not None:
+        payload["end_time"] = end_time
+    if one_time is not None:
+        payload["one_time"] = one_time
+
+    return await _api(
+        "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/add_charge_schedule", json=payload
+    )
+
+
+async def remove_charge_schedule(access_token: str, vehicle_id: str, id: int) -> dict:
+    return await _api(
+        "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/remove_charge_schedule", json={"id": id}
+    )
+
+
+async def get_charge_schedules(access_token: str, vehicle_id: str) -> dict:
+    data = await _api(
+        "GET",
+        access_token,
+        f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_schedule_data",
+    )
+    resp = data.get("response", {})
+    return resp.get("charge_schedule_data", {}).get("charge_schedules", {}) if isinstance(resp, dict) else {}
+
+
 async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:
     s = get_settings()
     

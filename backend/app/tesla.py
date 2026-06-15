@@ -196,8 +196,10 @@ async def add_charge_schedule(
     }
     if start_time is not None:
         payload["start_time"] = start_time
+        payload["start_enabled"] = True
     if end_time is not None:
         payload["end_time"] = end_time
+        payload["end_enabled"] = True
     if one_time is not None:
         payload["one_time"] = one_time
 

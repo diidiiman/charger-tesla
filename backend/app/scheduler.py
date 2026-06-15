@@ -59,14 +59,16 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
     if not auto_charge or user.threshold_price is None or not user.region or user.home_latitude is None or user.home_longitude is None:
         try:
             schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
-            if isinstance(schedules, dict) and schedules:
+            sched_list = schedules if isinstance(schedules, list) else ([{"id": int(k)} for k in schedules.keys()] if isinstance(schedules, dict) else [])
+            if sched_list:
                 try:
                     await tesla.wake_up(token, user.tesla.vehicle_id)
                     await asyncio.sleep(5)
                 except Exception:
                     pass
-                for sched_id in schedules.keys():
-                    await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+                for sched in sched_list:
+                    if "id" in sched:
+                        await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched["id"]))
         except Exception as e:
             log.warning("failed to clear schedules for user=%s: %s", user.id, e)
         return
@@ -116,20 +118,22 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
     # 4. Clear existing schedules and send new ones
     try:
         schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
-        if isinstance(schedules, dict) and schedules:
+        sched_list = schedules if isinstance(schedules, list) else ([{"id": int(k)} for k in schedules.keys()] if isinstance(schedules, dict) else [])
+        if sched_list:
             try:
                 await tesla.wake_up(token, user.tesla.vehicle_id)
                 await asyncio.sleep(5)
             except Exception:
                 pass
-            for sched_id in schedules.keys():
-                await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+            for sched in sched_list:
+                if "id" in sched:
+                    await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched["id"]))
         
         if not blocks:
             return
             
         # If we have blocks to send, wake the car up
-        if not (isinstance(schedules, dict) and schedules):
+        if not sched_list:
             try:
                 await tesla.wake_up(token, user.tesla.vehicle_id)
                 await asyncio.sleep(5)

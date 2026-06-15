@@ -88,7 +88,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
 
     cheap_hours = []
     for p in region_prices:
-        val = p.price * multiplier
+        val = float(p.price) * multiplier
         if val <= threshold:
             cheap_hours.append(p)
 

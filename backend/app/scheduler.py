@@ -92,16 +92,25 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
         if val <= threshold:
             cheap_hours.append(p)
 
-    # 3. Group into contiguous blocks
+    # 3. Group into contiguous blocks, splitting at midnight local time
     blocks = []
     if cheap_hours:
+        tz_str = REGION_TIMEZONES.get(user.region, "UTC")
+        tz = zoneinfo.ZoneInfo(tz_str)
+        
         current_block = [cheap_hours[0]]
         for i in range(1, len(cheap_hours)):
-            if cheap_hours[i].valid_from == current_block[-1].valid_to:
-                current_block.append(cheap_hours[i])
+            prev = current_block[-1]
+            curr = cheap_hours[i]
+            
+            prev_local = prev.valid_from.astimezone(tz)
+            curr_local = curr.valid_from.astimezone(tz)
+            
+            if curr.valid_from == prev.valid_to and prev_local.date() == curr_local.date():
+                current_block.append(curr)
             else:
                 blocks.append(current_block)
-                current_block = [cheap_hours[i]]
+                current_block = [curr]
         blocks.append(current_block)
 
     # 4. Clear existing schedules and send new ones

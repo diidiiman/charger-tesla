@@ -150,9 +150,9 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
             start_minutes = start_dt.hour * 60 + start_dt.minute
             end_minutes = end_dt.hour * 60 + end_dt.minute
             
-            # Python weekday(): Monday=0...Sunday=6
-            # Tesla days_of_week bitmask: Monday=1, Tuesday=2, ..., Sunday=64
-            days_of_week = 1 << start_dt.weekday()
+            # Tesla days_of_week mapping for string inputs
+            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
+            days_of_week = days_map[start_dt.weekday()]
 
             await tesla.add_charge_schedule(
                 access_token=token,

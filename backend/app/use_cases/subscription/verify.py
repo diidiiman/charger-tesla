@@ -14,6 +14,7 @@ class VerifySubscriptionUseCase:
 
         result = await subscriptions.verify_receipt(body.platform, body.receipt)
 
+        was_active = False
         sub = user.subscription
         if sub is None:
             sub = Subscription(
@@ -26,6 +27,7 @@ class VerifySubscriptionUseCase:
             )
             db.add(sub)
         else:
+            was_active = sub.active
             sub.platform = body.platform
             sub.product_id = body.product_id
             sub.receipt = body.receipt
@@ -33,7 +35,10 @@ class VerifySubscriptionUseCase:
             sub.expires_at = result["expires_at"]
 
         # If a subscription lapses, automatically disable auto-charging.
-        if not result["active"]:
+        # If it becomes active for the first time or is restored, enable auto-charging.
+        if result["active"] and not was_active:
+            user.auto_charge_enabled = True
+        elif not result["active"]:
             user.auto_charge_enabled = False
 
         await db.commit()
@@ -43,8 +48,9 @@ class VerifySubscriptionUseCase:
         try:
             from app.scheduler import sync_charge_schedule
             await sync_charge_schedule(db, user)
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to sync schedule in VerifySubscriptionUseCase: {e}")
 
         return SubscriptionStatus(
             active=sub.active,

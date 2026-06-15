@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import prices, tesla
 from .config import get_settings

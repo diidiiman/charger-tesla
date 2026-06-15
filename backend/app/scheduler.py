@@ -136,11 +136,15 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
 
             start_minutes = start_dt.hour * 60 + start_dt.minute
             end_minutes = end_dt.hour * 60 + end_dt.minute
+            
+            # Python weekday(): Monday=0...Sunday=6
+            # Tesla days_of_week bitmask: Monday=1, Tuesday=2, ..., Sunday=64
+            days_of_week = 1 << start_dt.weekday()
 
             await tesla.add_charge_schedule(
                 access_token=token,
                 vehicle_id=user.tesla.vehicle_id,
-                days_of_week="all",
+                days_of_week=days_of_week,
                 enabled=True,
                 lat=float(user.home_latitude),
                 lon=float(user.home_longitude),
@@ -151,7 +155,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
 
             if user.push_token and user.price_change_reminder:
                 msg_title = "Charging Schedule Set"
-                msg_body = f"Scheduled to charge from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
+                msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
                 asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
 
     except Exception as e:

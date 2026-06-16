@@ -163,7 +163,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None) -> Non
                 lon=float(user.home_longitude),
                 start_time=start_minutes,
                 end_time=end_minutes,
-                one_time=True
+                one_time=False
             )
 
             if user.push_token and user.price_change_reminder:

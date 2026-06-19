@@ -63,7 +63,12 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
     if not auto_charge or user.threshold_price is None or not user.region or user.home_latitude is None or user.home_longitude is None:
         try:
             schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
-            sched_list = schedules if isinstance(schedules, list) else ([{"id": int(k)} for k in schedules.keys()] if isinstance(schedules, dict) else [])
+            if isinstance(schedules, list):
+                sched_list = schedules
+            elif isinstance(schedules, dict):
+                sched_list = [{"id": int(k)} for k in schedules.keys()]
+            else:
+                sched_list = []
             if sched_list:
                 try:
                     await tesla.wake_up(token, user.tesla.vehicle_id)
@@ -125,7 +130,19 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
     # 4. Clear old/conflicting schedules and send new ones
     try:
         schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
-        sched_list = schedules if isinstance(schedules, list) else ([{"id": int(k)} for k in schedules.keys()] if isinstance(schedules, dict) else [])
+        
+        if isinstance(schedules, list):
+            sched_list = schedules
+        elif isinstance(schedules, dict):
+            sched_list = []
+            for k, v in schedules.items():
+                if isinstance(v, dict):
+                    v["id"] = int(k)
+                    sched_list.append(v)
+                else:
+                    sched_list.append({"id": int(k)})
+        else:
+            sched_list = []
         
         schedules_to_delete = []
         if target_date is not None:
@@ -140,12 +157,14 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 if "id" not in sched:
                     continue
                 
-                try:
-                    sched_day = int(sched.get("days_of_week", -1))
-                except (ValueError, TypeError):
-                    sched_day = -1
-                    
-                if sched_day == target_mask or sched_day != today_mask:
+                sched_day = sched.get("days_of_week")
+                
+                # Check both string ("FRI") and integer bitmask (32) formats
+                # in case the Tesla API returns either
+                is_target = (str(sched_day) == str(target_mask)) or (str(sched_day) == days_map[target_weekday])
+                is_today = (str(sched_day) == str(today_mask)) or (str(sched_day) == days_map[today_weekday])
+                
+                if is_target or not is_today:
                     schedules_to_delete.append(sched["id"])
         else:
             schedules_to_delete = [s["id"] for s in sched_list if "id" in s]
@@ -189,14 +208,14 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     if end_minutes <= start_minutes:
                         continue
             
-            # Tesla days_of_week as integer bitmask (1=Sun, 2=Mon, 4=Tue, 8=Wed, 16=Thu, 32=Fri, 64=Sat)
-            tesla_weekday_mask = [2, 4, 8, 16, 32, 64, 1]
-            days_of_week_mask = tesla_weekday_mask[start_dt.weekday()]
+            # Tesla days_of_week mapping for string inputs when setting schedules
+            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
+            days_of_week_str = days_map[start_dt.weekday()]
 
             await tesla.add_charge_schedule(
                 access_token=token,
                 vehicle_id=user.tesla.vehicle_id,
-                days_of_week=days_of_week_mask,
+                days_of_week=days_of_week_str,
                 enabled=True,
                 lat=float(user.home_latitude),
                 lon=float(user.home_longitude),
@@ -204,6 +223,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 end_time=end_minutes,
                 one_time=True
             )
+            log.info("add_charge_schedule response for user=%s: %s", user.id, res)
 
             if user.push_token and user.price_change_reminder:
                 msg_title = "Charging Schedule Set"

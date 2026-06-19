@@ -254,6 +254,7 @@ async def fetch_and_store_prices(db: AsyncSession, target_date: datetime, region
                     await db.commit()
 
             except Exception as e:
+                await db.rollback()
                 print(f"Error fetching/storing prices for {region}: {e}")
 
             # Small delay to be polite to the API

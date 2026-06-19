@@ -172,6 +172,10 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         for block in blocks:
             start_dt = block[0].valid_from.astimezone(tz)
             end_dt = block[-1].valid_to.astimezone(tz)
+            
+            # Skip blocks that have completely passed today
+            if target_date is None and end_dt <= now_local:
+                continue
 
             start_minutes = start_dt.hour * 60 + start_dt.minute
             end_minutes = end_dt.hour * 60 + end_dt.minute
@@ -180,6 +184,9 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 now_minutes = now_local.hour * 60 + now_local.minute
                 if start_minutes < now_minutes:
                     start_minutes = now_minutes + 2
+                    # Double check if end_minutes is now before start_minutes
+                    if end_minutes <= start_minutes:
+                        continue
             
             # Tesla days_of_week as integer bitmask (1=Mon, 2=Tue, 4=Wed, ..., 64=Sun)
             days_of_week_mask = 1 << start_dt.weekday()
@@ -193,7 +200,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 lon=float(user.home_longitude),
                 start_time=start_minutes,
                 end_time=end_minutes,
-                one_time=False
+                one_time=True
             )
 
             if user.push_token and user.price_change_reminder:

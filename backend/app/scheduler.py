@@ -131,13 +131,20 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         if target_date is not None:
             target_weekday = target_date.weekday()
             today_weekday = now_local.weekday()
-            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
+            
+            target_mask = 1 << target_weekday
+            today_mask = 1 << today_weekday
             
             for sched in sched_list:
                 if "id" not in sched:
                     continue
-                sched_day = sched.get("days_of_week")
-                if sched_day == days_map[target_weekday] or sched_day != days_map[today_weekday]:
+                
+                try:
+                    sched_day = int(sched.get("days_of_week", -1))
+                except (ValueError, TypeError):
+                    sched_day = -1
+                    
+                if sched_day == target_mask or sched_day != today_mask:
                     schedules_to_delete.append(sched["id"])
         else:
             schedules_to_delete = [s["id"] for s in sched_list if "id" in s]
@@ -174,14 +181,13 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 if start_minutes < now_minutes:
                     start_minutes = now_minutes + 2
             
-            # Tesla days_of_week mapping for string inputs
-            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-            days_of_week = days_map[start_dt.weekday()]
+            # Tesla days_of_week as integer bitmask (1=Mon, 2=Tue, 4=Wed, ..., 64=Sun)
+            days_of_week_mask = 1 << start_dt.weekday()
 
             await tesla.add_charge_schedule(
                 access_token=token,
                 vehicle_id=user.tesla.vehicle_id,
-                days_of_week=days_of_week,
+                days_of_week=days_of_week_mask,
                 enabled=True,
                 lat=float(user.home_latitude),
                 lon=float(user.home_longitude),
@@ -218,8 +224,8 @@ async def fetch_daily_prices_forever() -> None:
     last_fetched_date = None
     while True:
         now = datetime.now(timezone.utc)
-        # Run between 12:00 and 13:00 UTC
-        if now.hour == 12 and last_fetched_date != now.date():
+        # Run after 12:00 UTC
+        if now.hour >= 12 and last_fetched_date != now.date():
             try:
                 async with SessionLocal() as session:
                     # Nord Pool day-ahead prices for tomorrow are published around 13:00 CET/CEST

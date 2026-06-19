@@ -132,8 +132,9 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             target_weekday = target_date.weekday()
             today_weekday = now_local.weekday()
             
-            target_mask = 1 << target_weekday
-            today_mask = 1 << today_weekday
+            tesla_weekday_mask = [2, 4, 8, 16, 32, 64, 1]
+            target_mask = tesla_weekday_mask[target_weekday]
+            today_mask = tesla_weekday_mask[today_weekday]
             
             for sched in sched_list:
                 if "id" not in sched:
@@ -188,8 +189,9 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     if end_minutes <= start_minutes:
                         continue
             
-            # Tesla days_of_week as integer bitmask (1=Mon, 2=Tue, 4=Wed, ..., 64=Sun)
-            days_of_week_mask = 1 << start_dt.weekday()
+            # Tesla days_of_week as integer bitmask (1=Sun, 2=Mon, 4=Tue, 8=Wed, 16=Thu, 32=Fri, 64=Sat)
+            tesla_weekday_mask = [2, 4, 8, 16, 32, 64, 1]
+            days_of_week_mask = tesla_weekday_mask[start_dt.weekday()]
 
             await tesla.add_charge_schedule(
                 access_token=token,

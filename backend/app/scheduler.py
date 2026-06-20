@@ -153,6 +153,8 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             target_mask = tesla_weekday_mask[target_weekday]
             today_mask = tesla_weekday_mask[today_weekday]
             
+            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
+            
             for sched in sched_list:
                 if "id" not in sched:
                     continue

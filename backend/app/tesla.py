@@ -187,6 +187,7 @@ async def add_charge_schedule(
     start_time: int | None = None,
     end_time: int | None = None,
     one_time: bool | None = None,
+    id: int | None = None,
 ) -> dict:
     payload = {
         "days_of_week": days_of_week,
@@ -194,6 +195,8 @@ async def add_charge_schedule(
         "lat": lat,
         "lon": lon,
     }
+    if id is not None:
+        payload["id"] = id
     if start_time is not None:
         payload["start_time"] = start_time
         payload["start_enabled"] = True

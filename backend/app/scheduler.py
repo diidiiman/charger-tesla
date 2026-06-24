@@ -191,7 +191,10 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             except Exception:
                 pass
 
-        for block in blocks:
+        import time
+        base_id = int(time.time())
+
+        for idx, block in enumerate(blocks):
             start_dt = block[0].valid_from.astimezone(tz)
             end_dt = block[-1].valid_to.astimezone(tz)
             
@@ -214,7 +217,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
             days_of_week_str = days_map[start_dt.weekday()]
 
-            await tesla.add_charge_schedule(
+            res = await tesla.add_charge_schedule(
                 access_token=token,
                 vehicle_id=user.tesla.vehicle_id,
                 days_of_week=days_of_week_str,
@@ -223,7 +226,8 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 lon=float(user.home_longitude),
                 start_time=start_minutes,
                 end_time=end_minutes,
-                one_time=True
+                one_time=True,
+                id=base_id + idx
             )
             log.info("add_charge_schedule response for user=%s: %s", user.id, res)
 

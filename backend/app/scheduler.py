@@ -217,24 +217,30 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
             days_of_week_str = days_map[start_dt.weekday()]
 
-            res = await tesla.add_charge_schedule(
-                access_token=token,
-                vehicle_id=user.tesla.vehicle_id,
-                days_of_week=days_of_week_str,
-                enabled=True,
-                lat=float(user.home_latitude),
-                lon=float(user.home_longitude),
-                start_time=start_minutes,
-                end_time=end_minutes,
-                one_time=True,
-                id=base_id + idx
-            )
-            log.info("add_charge_schedule response for user=%s: %s", user.id, res)
+            try:
+                res = await tesla.add_charge_schedule(
+                    access_token=token,
+                    vehicle_id=user.tesla.vehicle_id,
+                    days_of_week=days_of_week_str,
+                    enabled=True,
+                    lat=float(user.home_latitude),
+                    lon=float(user.home_longitude),
+                    start_time=start_minutes,
+                    end_time=end_minutes,
+                    one_time=True,
+                    id=base_id + idx
+                )
+                log.info("add_charge_schedule response for user=%s: %s", user.id, res)
+            except Exception as e:
+                log.error("add_charge_schedule failed for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
+                continue
 
             if user.push_token and user.price_change_reminder:
                 msg_title = "Charging Schedule Set"
                 msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
                 asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+                
+            await asyncio.sleep(2)  # Avoid rate limits when adding multiple blocks
 
     except Exception as e:
         log.warning("failed to sync schedules for user=%s: %s", user.id, e)

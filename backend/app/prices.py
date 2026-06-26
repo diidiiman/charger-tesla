@@ -38,6 +38,7 @@ REGIONS: list[dict] = [
     {"code": "EE", "label": "Estonia"},
     {"code": "LV", "label": "Latvia"},
     {"code": "LT", "label": "Lithuania"},
+    {"code": "PL", "label": "Poland"},
 ]
 VALID_REGION_CODES = {r["code"] for r in REGIONS}
 
@@ -106,6 +107,7 @@ VAT_RATES = {
     "EE": 1.22,
     "LV": 1.21,
     "LT": 1.21,
+    "PL": 1.23,
 }
 
 

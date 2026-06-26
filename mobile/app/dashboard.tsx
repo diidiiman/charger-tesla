@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Feather } from '@expo/vector-icons';
-import { api, Dashboard as DashboardData } from '../src/api';
+import { api, Dashboard as DashboardData, getCurrency } from '../src/api';
 import {
   Body,
   Button,
@@ -88,7 +88,8 @@ export default function Dashboard() {
         <Pressable 
           onPress={() => {
             if (data?.settings.region) {
-              Linking.openURL(`https://data.nordpoolgroup.com/auction/day-ahead/prices?deliveryDate=latest&currency=EUR&aggregation=Hourly&deliveryAreas=${data.settings.region}`);
+              const currency = getCurrency(data.settings.region);
+              Linking.openURL(`https://data.nordpoolgroup.com/auction/day-ahead/prices?deliveryDate=latest&currency=${currency}&aggregation=Hourly&deliveryAreas=${data.settings.region}`);
             }
           }}
         >
@@ -119,12 +120,12 @@ export default function Dashboard() {
                 {data?.price ? data.price.price.toFixed(4) : '—'}
               </Body>
               <Body muted style={{ fontVariant: ['tabular-nums'] }}>
-                EUR / kWh {data?.settings.vat_included ? '(incl. VAT)' : '(excl. VAT)'}
+                {getCurrency(data?.settings.region)} / kWh {data?.settings.vat_included ? '(incl. VAT)' : '(excl. VAT)'}
               </Body>
             </View>
             {data?.settings.threshold_price != null && (
               <Body muted style={{ marginTop: theme.space.sm, fontSize: theme.size.sm }}>
-                Threshold {data.settings.threshold_price.toFixed(4)} EUR/kWh {data.settings.vat_included ? '(incl. VAT)' : '(excl. VAT)'}
+                Threshold {data.settings.threshold_price.toFixed(4)} {getCurrency(data.settings.region)}/kWh {data.settings.vat_included ? '(incl. VAT)' : '(excl. VAT)'}
               </Body>
             )}
           </Card>

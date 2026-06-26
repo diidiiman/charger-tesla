@@ -18,6 +18,8 @@ class UpdateSettingsUseCase:
             if body.threshold_price < 0:
                 raise HTTPException(400, "threshold_price must be ≥ 0")
             user.threshold_price = body.threshold_price
+        if body.currency is not None:
+            user.currency = body.currency
         if body.vat_included is not None:
             user.vat_included = body.vat_included
         if body.units is not None:

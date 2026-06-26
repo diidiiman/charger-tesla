@@ -42,6 +42,7 @@ class UserSettings(BaseModel):
 class UserSettingsUpdate(BaseModel):
     region: str | None = None
     threshold_price: float | None = None
+    currency: str | None = None
     vat_included: bool | None = None
     units: str | None = None
     home_latitude: float | None = None

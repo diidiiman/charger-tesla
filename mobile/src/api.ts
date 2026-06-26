@@ -78,6 +78,18 @@ export type SubscriptionStatus = {
   platform: string | null;
 };
 
+export function getCurrency(regionCode?: string | null): string {
+  if (!regionCode) return 'EUR';
+  const prefix = regionCode.substring(0, 2).toUpperCase();
+  switch (prefix) {
+    case 'NO': return 'NOK';
+    case 'SE': return 'SEK';
+    case 'DK': return 'DKK';
+    case 'PL': return 'PLN';
+    default: return 'EUR';
+  }
+}
+
 export const api = {
   base: BASE,
   registerDevice: (device_id: string) =>

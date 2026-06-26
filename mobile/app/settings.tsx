@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
-import { api, Region, UserSettings } from '../src/api';
+import { api, Region, UserSettings, getCurrency } from '../src/api';
 import { Body, Button, ErrorBox, Label } from '../src/components/ui';
 import { theme } from '../src/theme';
 
@@ -45,6 +45,7 @@ export default function Settings() {
         price_change_reminder: priceChangeReminder,
         auto_charge_enabled: autoCharge,
         units,
+        currency: getCurrency(settings.region ?? undefined),
       });
       setSettings(updated);
       router.back();
@@ -91,7 +92,7 @@ export default function Settings() {
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>
-          <Label>Threshold price (EUR / kWh)</Label>
+          <Label>{`Threshold price (${getCurrency(settings?.region)} / kWh)`}</Label>
           <TextInput
             value={threshold}
             onChangeText={setThreshold}

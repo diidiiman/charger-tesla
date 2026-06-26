@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
-import { api, Region } from '../src/api';
+import { api, Region, getCurrency } from '../src/api';
 import { getOrCreateDeviceId, session } from '../src/storage';
 import { Body, Button, ErrorBox, Label } from '../src/components/ui';
 import { theme } from '../src/theme';
@@ -41,7 +41,7 @@ export default function RegionPicker() {
     setError(null); setBusy(true);
     try {
       const t = parseFloat(threshold);
-      await api.putSettings({ region: selected, threshold_price: Number.isFinite(t) ? t : undefined, vat_included: vatIncluded, units });
+      await api.putSettings({ region: selected, threshold_price: Number.isFinite(t) ? t : undefined, vat_included: vatIncluded, units, currency: getCurrency(selected) });
       router.replace('/notifications');
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
@@ -83,7 +83,7 @@ export default function RegionPicker() {
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>
-          <Label>Threshold price (EUR / kWh)</Label>
+          <Label>{`Threshold price (${getCurrency(selected)} / kWh)`}</Label>
           <Body muted style={{ marginTop: theme.space.sm }}>
             Charge while the price is at or below this.
           </Body>

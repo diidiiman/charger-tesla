@@ -12,6 +12,7 @@ __pycache__/
 *.pem
 !com.tesla.3p.public-key.pem
 *.png
+!mobile/assets/*.png
 *.json
 !mobile/*.json
 !mobile/tsconfig.json

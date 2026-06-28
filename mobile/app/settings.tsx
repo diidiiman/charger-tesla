@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { api, Region, UserSettings, getCurrency } from '../src/api';
 import { Body, Button, ErrorBox, Label } from '../src/components/ui';
@@ -17,6 +19,7 @@ export default function Settings() {
   const [teslaLinked, setTeslaLinked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -69,28 +72,50 @@ export default function Settings() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Label>Region</Label>
-          <View style={{ marginTop: theme.space.md }}>
-            {regions.map((item, index) => {
-              const active = settings?.region === item.code;
-              return (
-                <View key={item.code}>
-                  {index > 0 && <View style={{ height: 1, backgroundColor: theme.border.subtle }} />}
-                  <Pressable
-                    onPress={() => settings && setSettings({ ...settings, region: item.code })}
-                    style={styles.row}
-                  >
-                    <Body style={{ fontWeight: active ? '600' : '400' }}>{item.label}</Body>
-                    <View
-                      style={[
-                        styles.radio,
-                        active && { borderColor: theme.accent, backgroundColor: theme.accent },
-                      ]}
-                    />
-                  </Pressable>
+          {Platform.OS === 'ios' ? (
+            <>
+              <Pressable
+                style={{ marginTop: theme.space.lg, height: 44, paddingHorizontal: theme.space.md, borderRadius: theme.radius.md, backgroundColor: theme.bg.input, borderWidth: 1, borderColor: theme.border.subtle, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                onPress={() => setPickerVisible(true)}
+              >
+                <Body style={{ color: settings?.region ? theme.fg.primary : theme.fg.faint }}>
+                  {settings?.region ? `${regions?.find(r => r.code === settings.region)?.label} (${settings.region})` : 'Select a region...'}
+                </Body>
+                <Feather name="chevron-down" size={20} color={theme.fg.primary} />
+              </Pressable>
+      
+              <Modal visible={pickerVisible} animationType="slide" transparent={true}>
+                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                  <View style={{ backgroundColor: theme.bg.surface, paddingBottom: 40, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: theme.space.md, borderBottomWidth: 1, borderBottomColor: theme.border.subtle }}>
+                      <Button title="Done" variant="ghost" onPress={() => setPickerVisible(false)} />
+                    </View>
+                    <Picker
+                      selectedValue={settings?.region || ''}
+                      onValueChange={(itemValue) => settings && setSettings({ ...settings, region: itemValue })}
+                    >
+                      {regions?.map((item) => (
+                        <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} color={theme.fg.primary} />
+                      ))}
+                    </Picker>
+                  </View>
                 </View>
-              );
-            })}
-          </View>
+              </Modal>
+            </>
+          ) : (
+            <View style={{ marginTop: theme.space.lg, overflow: 'hidden', borderRadius: theme.radius.md, backgroundColor: theme.bg.input, borderWidth: 1, borderColor: theme.border.subtle }}>
+              <Picker
+                selectedValue={settings?.region || ''}
+                onValueChange={(itemValue) => settings && setSettings({ ...settings, region: itemValue })}
+                style={{ color: theme.fg.primary }}
+                dropdownIconColor={theme.fg.primary}
+              >
+                {regions?.map((item) => (
+                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} color={theme.fg.primary} />
+                ))}
+              </Picker>
+            </View>
+          )}
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>

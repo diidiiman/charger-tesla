@@ -98,9 +98,9 @@ export default function RegionPicker() {
                 style={{ color: theme.fg.primary }}
                 dropdownIconColor={theme.fg.primary}
               >
-                <Picker.Item label="Select a region..." value="" color={theme.fg.primary} />
+                <Picker.Item label="Select a region..." value="" />
                 {regions?.map((item) => (
-                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} color={theme.fg.primary} />
+                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} />
                 ))}
               </Picker>
             </View>

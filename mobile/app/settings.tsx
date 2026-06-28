@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { api, Region, UserSettings, getCurrency } from '../src/api';
-import { Body, Button, ErrorBox, Label } from '../src/components/ui';
+import { Body, Button, ErrorBox, Label, BottomBar } from '../src/components/ui';
 import { theme } from '../src/theme';
 
 export default function Settings() {
@@ -68,8 +69,9 @@ export default function Settings() {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Label>Region</Label>
           {Platform.OS === 'ios' ? (
@@ -110,8 +112,9 @@ export default function Settings() {
                 style={{ color: theme.fg.primary }}
                 dropdownIconColor={theme.fg.primary}
               >
+                <Picker.Item label="Select a region..." value="" />
                 {regions?.map((item) => (
-                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} color={theme.fg.primary} />
+                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} />
                 ))}
               </Picker>
             </View>
@@ -174,12 +177,18 @@ export default function Settings() {
 
         <View style={{ flex: 1, minHeight: theme.space['2xl'] }} />
 
-        <View style={{ marginTop: theme.space.xl, gap: theme.space.sm }}>
-          <Button title="Save" variant="primary" loading={busy} onPress={save} />
-          {teslaLinked && <Button title="Disconnect Tesla account" onPress={unlink} disabled={busy} />}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {(teslaLinked || hasPro) && (
+          <View style={{ marginTop: theme.space.xl, gap: theme.space.sm }}>
+            {teslaLinked && <Button title="Disconnect Tesla account" onPress={unlink} disabled={busy} />}
+            {hasPro && <Button title="Manage subscription" variant="ghost" onPress={() => router.push('/upgrade')} disabled={busy} />}
+          </View>
+        )}
+        </ScrollView>
+        <BottomBar>
+          <Button title="Save" variant="primary" loading={busy} onPress={save} style={{ flex: 1 }} />
+        </BottomBar>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

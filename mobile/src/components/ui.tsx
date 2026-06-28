@@ -8,8 +8,12 @@ import {
   TextProps,
   View,
   ViewProps,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../theme';
+
+const screenWidth = Dimensions.get('window').width;
 
 export function Card({ style, children, ...rest }: ViewProps) {
   return (
@@ -125,6 +129,21 @@ export function ErrorBox({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function BottomBar({ children, style, ...rest }: ViewProps) {
+  return (
+    <View style={[styles.bottomBarContainer, style]} {...rest}>
+      <LinearGradient 
+        colors={['rgba(10, 10, 12, 0)', '#0a0a0c']} 
+        style={styles.bottomBarFade} 
+        pointerEvents="none" 
+      />
+      <View style={styles.bottomBarContent}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.bg.surface,
@@ -193,5 +212,25 @@ const styles = StyleSheet.create({
     backgroundColor: theme.accentSoft,
     padding: theme.space.md,
     borderRadius: theme.radius.sm,
+  },
+  bottomBarContainer: {
+    position: 'relative',
+    backgroundColor: theme.bg.base,
+    width: screenWidth,
+  },
+  bottomBarFade: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    width: screenWidth,
+    height: 20,
+  },
+  bottomBarContent: {
+    paddingHorizontal: theme.space['2xl'],
+    paddingBottom: theme.space['2xl'],
+    paddingTop: theme.space.md,
+    backgroundColor: theme.bg.base,
+    flexDirection: 'row',
+    gap: theme.space.sm,
   },
 });

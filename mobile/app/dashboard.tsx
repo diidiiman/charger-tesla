@@ -17,6 +17,7 @@ import {
   Pill,
   ProgressBar,
   Stat,
+  BottomBar,
 } from '../src/components/ui';
 import { theme } from '../src/theme';
 
@@ -161,6 +162,14 @@ export default function Dashboard() {
           </Card>
         </Pressable>
 
+        {!data?.subscription_active && (
+          <Button
+            title="Upgrade to automated charging"
+            variant="primary"
+            onPress={() => router.push('/upgrade')}
+          />
+        )}
+
         {/* Car */}
         {!data?.tesla_linked ? (
           <Card>
@@ -281,15 +290,9 @@ export default function Dashboard() {
         {error && <ErrorBox>{error}</ErrorBox>}
       </ScrollView>
 
-      <View style={{ flexDirection: 'row', gap: theme.space.sm, paddingHorizontal: theme.space['2xl'], paddingBottom: theme.space['2xl'], paddingTop: theme.space.md, backgroundColor: theme.bg.base }}>
+      <BottomBar>
         <Button style={{ flex: 1 }} title="Settings" variant="ghost" onPress={() => router.push('/settings')} />
-        <Button
-          style={{ flex: 1 }}
-          title={data?.subscription_active ? 'Manage Pro' : 'Upgrade to Pro'}
-          variant={data?.subscription_active ? 'ghost' : 'primary'}
-          onPress={() => router.push('/upgrade')}
-        />
-      </View>
+      </BottomBar>
     </SafeAreaView>
   );
 }

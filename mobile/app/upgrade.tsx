@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View, Linking } from 'react-native';
+import { Platform, StyleSheet, View, Linking, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, SubscriptionStatus } from '../src/api';
-import { Body, Button, Card, ErrorBox, H1, H2, Label, Pill } from '../src/components/ui';
+import { Body, Button, Card, ErrorBox, H1, H2, Label, Pill, BottomBar } from '../src/components/ui';
 import { theme } from '../src/theme';
 
 /**
@@ -141,48 +142,49 @@ export default function Upgrade() {
   }
 
   return (
-    <View style={styles.root}>
-      <Card>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Label>Tesla Nord Pool Pro</Label>
-          <Pill tone={status?.active ? 'ok' : undefined} label={status?.active ? 'Active' : 'Inactive'} />
-        </View>
-        <Body muted style={{ marginTop: theme.space.md }}>
-          With Pro, the app watches the price for your region and automatically starts and stops your
-          Tesla’s charging session whenever the price crosses your threshold. Cancel any time from the
-          {Platform.OS === 'ios' ? ' App Store' : ' Play Store'}.
-        </Body>
-      </Card>
-
-      {!status?.active && (
-        <Card style={{ marginTop: theme.space.lg, borderColor: theme.accent, backgroundColor: `${theme.accent}10` }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.sm }}>
-            <Label style={{ color: theme.accent }}>7-Day Free Trial</Label>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Card>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Label>Tesla Nord Pool Pro</Label>
+            <Pill tone={status?.active ? 'ok' : undefined} label={status?.active ? 'Active' : 'Inactive'} />
           </View>
-          <Body muted style={{ marginTop: theme.space.xs }}>
-            Try all Pro features completely free for 7 days. If you cancel before the trial ends, you won't be charged.
+          <Body muted style={{ marginTop: theme.space.md }}>
+            With Pro, the app watches the price for your region and automatically starts and stops your
+            Tesla’s charging session whenever the price crosses your threshold. Cancel any time from the
+            {Platform.OS === 'ios' ? ' App Store' : ' Play Store'}.
           </Body>
         </Card>
-      )}
 
-      {error && <View style={{ marginTop: theme.space.lg }}><ErrorBox>{error}</ErrorBox></View>}
-
-      <View style={{ flex: 1 }} />
-
-      <View style={{ marginTop: theme.space.lg, gap: theme.space.sm }}>
-        {!status?.active ? (
-          <>
-            <Button title={`Subscribe via ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}`} variant="primary" loading={busy} onPress={buy} />
-            <Button title="Restore purchases" variant="ghost" loading={busy} onPress={restore} />
-          </>
-        ) : (
-          <Button title="Cancel Pro plan" variant="ghost" loading={busy} onPress={cancelPlan} />
+        {!status?.active && (
+          <Card style={{ marginTop: theme.space.lg, borderColor: theme.accent, backgroundColor: `${theme.accent}10` }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.sm }}>
+              <Label style={{ color: theme.accent }}>7-Day Free Trial</Label>
+            </View>
+            <Body muted style={{ marginTop: theme.space.xs }}>
+              Try all Pro features completely free for 7 days. If you cancel before the trial ends, you won't be charged.
+            </Body>
+          </Card>
         )}
-      </View>
-    </View>
+
+        {error && <View style={{ marginTop: theme.space.lg }}><ErrorBox>{error}</ErrorBox></View>}
+      </ScrollView>
+
+      <BottomBar>
+        {!status?.active ? (
+          <View style={{ flex: 1, gap: theme.space.sm }}>
+            <Button style={{ width: '100%' }} title={`Subscribe via ${Platform.OS === 'ios' ? 'App Store' : 'Play Store'}`} variant="primary" loading={busy} onPress={buy} />
+            <Button style={{ width: '100%' }} title="Restore purchases" variant="ghost" loading={busy} onPress={restore} />
+          </View>
+        ) : (
+          <Button style={{ flex: 1 }} title="Cancel Pro plan" variant="ghost" loading={busy} onPress={cancelPlan} />
+        )}
+      </BottomBar>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base, padding: theme.space['2xl'] },
+  root: { flex: 1, backgroundColor: theme.bg.base },
+  scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
 });

@@ -14,16 +14,18 @@ export default function Settings() {
   const [autoCharge, setAutoCharge] = useState(false);
   const [hasPro, setHasPro] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [teslaLinked, setTeslaLinked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [r, s, sub] = await Promise.all([api.regions(), api.getSettings(), api.subscriptionStatus()]);
+        const [r, s, sub, dash] = await Promise.all([api.regions(), api.getSettings(), api.subscriptionStatus(), api.dashboard()]);
         setRegions(r);
         setSettings(s);
         setHasPro(sub.active);
+        setTeslaLinked(dash.tesla_linked);
         if (s.threshold_price != null) setThreshold(s.threshold_price.toString());
         if (s.vat_included != null) setVatIncluded(s.vat_included);
         if (s.price_change_reminder != null) setPriceChangeReminder(s.price_change_reminder);
@@ -57,7 +59,7 @@ export default function Settings() {
     setBusy(true);
     try {
       await api.unlinkTesla();
-      router.replace('/connect');
+      router.replace('/dashboard');
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -149,7 +151,7 @@ export default function Settings() {
 
         <View style={{ marginTop: theme.space.xl, gap: theme.space.sm }}>
           <Button title="Save" variant="primary" loading={busy} onPress={save} />
-          <Button title="Disconnect Tesla account" onPress={unlink} disabled={busy} />
+          {teslaLinked && <Button title="Disconnect Tesla account" onPress={unlink} disabled={busy} />}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

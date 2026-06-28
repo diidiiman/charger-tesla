@@ -8,7 +8,7 @@ import { theme } from '../src/theme';
 export default function AuthLanding() {
   const { ok } = useLocalSearchParams<{ ok?: string }>();
   useEffect(() => {
-    router.replace(ok === '1' ? '/pairing' : '/connect');
+    router.replace(ok === '1' ? '/pairing' : '/dashboard');
   }, [ok]);
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg.base, alignItems: 'center', justifyContent: 'center' }}>

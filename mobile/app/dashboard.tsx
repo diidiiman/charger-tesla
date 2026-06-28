@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Feather } from '@expo/vector-icons';
 import { api, Dashboard as DashboardData, getCurrency } from '../src/api';
@@ -35,6 +36,34 @@ export default function Dashboard() {
   const [startBusy, setStartBusy] = useState(false);
   const [stopBusy, setStopBusy] = useState(false);
   const [refreshBusy, setRefreshBusy] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (url.includes('://auth')) {
+        const parsed = Linking.parse(url);
+        const ok = (parsed.queryParams?.ok as string) === '1';
+        if (ok) router.replace('/pairing');
+        else setError(`Tesla sign-in failed: ${parsed.queryParams?.error || 'unknown'}`);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  async function startTeslaAuth() {
+    setError(null); setAuthBusy(true);
+    try {
+      const returnUrl = Linking.createURL('auth');
+      const { authorize_url } = await api.startTeslaAuth(returnUrl);
+      const result = await WebBrowser.openAuthSessionAsync(authorize_url, returnUrl);
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        if ((parsed.queryParams?.ok as string) === '1') router.replace('/pairing');
+        else setError(`Tesla sign-in failed: ${parsed.queryParams?.error || 'unknown'}`);
+      }
+    } catch (e: any) { setError(e.message); }
+    finally { setAuthBusy(false); }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -71,8 +100,9 @@ export default function Dashboard() {
   const plugged = chargingState && chargingState !== 'Disconnected';
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <ScrollView
+        style={{ flex: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.fg.muted} />}
         contentContainerStyle={{ padding: theme.space['2xl'], gap: theme.space.lg }}
       >
@@ -142,7 +172,7 @@ export default function Dashboard() {
               Connect your Tesla account to view live charging state and enable auto-charging.
             </Body>
             <View style={{ marginTop: theme.space.lg }}>
-              <Button title="Connect Tesla" variant="primary" onPress={() => router.push('/connect')} />
+              <Button title="Connect Tesla" variant="primary" loading={authBusy} onPress={startTeslaAuth} />
             </View>
           </Card>
         ) : (
@@ -248,18 +278,18 @@ export default function Dashboard() {
         </Card>
         )}
 
-        <View style={{ flexDirection: 'row', gap: theme.space.sm }}>
-          <Button style={{ flex: 1 }} title="Settings" variant="ghost" onPress={() => router.push('/settings')} />
-          <Button
-            style={{ flex: 1 }}
-            title={data?.subscription_active ? 'Manage Pro' : 'Upgrade to Pro'}
-            variant={data?.subscription_active ? 'ghost' : 'primary'}
-            onPress={() => router.push('/upgrade')}
-          />
-        </View>
-
         {error && <ErrorBox>{error}</ErrorBox>}
       </ScrollView>
+
+      <View style={{ flexDirection: 'row', gap: theme.space.sm, paddingHorizontal: theme.space['2xl'], paddingBottom: theme.space['2xl'], paddingTop: theme.space.md, backgroundColor: theme.bg.base }}>
+        <Button style={{ flex: 1 }} title="Settings" variant="ghost" onPress={() => router.push('/settings')} />
+        <Button
+          style={{ flex: 1 }}
+          title={data?.subscription_active ? 'Manage Pro' : 'Upgrade to Pro'}
+          variant={data?.subscription_active ? 'ghost' : 'primary'}
+          onPress={() => router.push('/upgrade')}
+        />
+      </View>
     </SafeAreaView>
   );
 }

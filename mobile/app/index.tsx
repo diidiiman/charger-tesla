@@ -31,7 +31,6 @@ export default function Entry() {
       if (!settings.region) { setNext('/region'); return; }
 
       const dash = await api.dashboard();
-      if (!dash.tesla_linked) { setNext('/connect'); return; }
 
       setNext('/dashboard');
     } catch (e: any) {

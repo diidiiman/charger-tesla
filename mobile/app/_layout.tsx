@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -22,7 +24,6 @@ export default function RootLayout() {
           headerTitleStyle: { color: theme.fg.primary, fontWeight: '600' },
           headerTintColor: theme.fg.primary,
           headerShadowVisible: false,
-          headerBackTitleVisible: false,
           headerBackTitle: 'Back',
           contentStyle: { backgroundColor: theme.bg.base },
         }}
@@ -31,7 +32,6 @@ export default function RootLayout() {
         <Stack.Screen name="intro" options={{ headerShown: false }} />
         <Stack.Screen name="region" options={{ title: 'Choose region' }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
-        <Stack.Screen name="connect" options={{ title: 'Connect Tesla' }} />
         <Stack.Screen name="pairing" options={{ headerShown: false }} />
         <Stack.Screen name="dashboard" options={{ headerShown: false, title: 'Back' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />

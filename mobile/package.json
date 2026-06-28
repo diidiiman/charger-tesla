@@ -1,6 +1,6 @@
 {
   "name": "teslacharger-mobile",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "expo": "^54.0.35",
     "expo-application": "~7.0.8",

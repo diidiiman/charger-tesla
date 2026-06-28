@@ -32,7 +32,7 @@ export default function NotificationsOnboarding() {
           await api.putSettings({ push_token: token, price_change_reminder: true });
         }
       }
-      router.replace('/connect');
+      router.replace('/dashboard');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -41,14 +41,14 @@ export default function NotificationsOnboarding() {
   }
 
   async function skip() {
-    router.replace('/connect');
+    router.replace('/dashboard');
   }
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <H1>Tesla Nord Pool</H1>
-        <Pill label="Step 3 / 4" />
+        <Pill label="Step 3 / 3" />
       </View>
 
       <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: theme.space['2xl'] }}>

@@ -34,8 +34,20 @@ export default function Upgrade() {
       let product_id = 'charging_pro_monthly';
       if (IAP && typeof IAP.initConnection === 'function') {
         await IAP.initConnection();
+        let offerToken = '';
         if (typeof IAP.fetchProducts === 'function') {
-          await IAP.fetchProducts({ skus: [product_id], type: 'subs' });
+          const products = await IAP.fetchProducts({ skus: [product_id], type: 'subs' });
+          if (Platform.OS === 'android' && products && products.length > 0) {
+            const product = products.find((p: any) => p.id === product_id || p.productId === product_id);
+            if (product && product.subscriptionOffers) {
+              // Look for the pro-trial offer, or fallback to the first available offer token
+              const trialOffer = product.subscriptionOffers.find((o: any) => o.id === 'pro-trial' || (o.pricingPhasesAndroid && o.pricingPhasesAndroid.pricingPhaseList?.some((p: any) => p.priceAmountMicros === '0')));
+              const selectedOffer = trialOffer || product.subscriptionOffers[0];
+              if (selectedOffer) {
+                offerToken = selectedOffer.offerTokenAndroid || (selectedOffer as any).offerToken || '';
+              }
+            }
+          }
         }
         
         const purchase: any = await new Promise((resolve, reject) => {
@@ -52,7 +64,10 @@ export default function Upgrade() {
           IAP.requestPurchase({
             request: {
               apple: { sku: product_id },
-              google: { skus: [product_id] },
+              google: offerToken ? {
+                skus: [product_id],
+                subscriptionOffers: [{ sku: product_id, offerToken }]
+              } : { skus: [product_id] },
             },
             type: 'subs'
           }).catch((err: any) => {
@@ -98,7 +113,7 @@ export default function Upgrade() {
         await IAP.initConnection();
         const purchases = await IAP.getAvailablePurchases();
         const validPurchase = purchases.find((p: any) => p.productId === product_id);
-        receipt = validPurchase?.transactionReceipt || validPurchase?.purchaseToken || '';
+        receipt = (validPurchase as any)?.transactionReceipt || (validPurchase as any)?.purchaseToken || '';
         if (!receipt) throw new Error('No active subscription found to restore.');
       } else {
         receipt = `stub-restore-${Date.now()}`;
@@ -138,6 +153,17 @@ export default function Upgrade() {
           {Platform.OS === 'ios' ? ' App Store' : ' Play Store'}.
         </Body>
       </Card>
+
+      {!status?.active && (
+        <Card style={{ marginTop: theme.space.lg, borderColor: theme.accent, backgroundColor: `${theme.accent}10` }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.sm }}>
+            <Label style={{ color: theme.accent }}>7-Day Free Trial</Label>
+          </View>
+          <Body muted style={{ marginTop: theme.space.xs }}>
+            Try all Pro features completely free for 7 days. If you cancel before the trial ends, you won't be charged.
+          </Body>
+        </Card>
+      )}
 
       {error && <View style={{ marginTop: theme.space.lg }}><ErrorBox>{error}</ErrorBox></View>}
 

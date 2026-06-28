@@ -3,12 +3,13 @@ import { ActivityIndicator, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { api } from '../src/api';
 import { getOrCreateDeviceId, introSeen, session } from '../src/storage';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 import { Body, Button, Card, ErrorBox, H2 } from '../src/components/ui';
 
 type NextRoute = '/intro' | '/region' | '/connect' | '/dashboard' | null;
 
 export default function Entry() {
+  const { theme } = useTheme();
   const [next, setNext] = useState<NextRoute>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);

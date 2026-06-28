@@ -11,11 +11,13 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from '../theme';
+import { useTheme, Theme } from '../theme';
 
 const screenWidth = Dimensions.get('window').width;
 
 export function Card({ style, children, ...rest }: ViewProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <View style={[styles.card, style]} {...rest}>
       {children}
@@ -24,6 +26,8 @@ export function Card({ style, children, ...rest }: ViewProps) {
 }
 
 export function Label({ children, style, ...rest }: TextProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <Text style={[styles.label, style]} {...rest}>
       {String(children).toUpperCase()}
@@ -32,6 +36,8 @@ export function Label({ children, style, ...rest }: TextProps) {
 }
 
 export function H1({ children, style, ...rest }: TextProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <Text style={[styles.h1, style]} {...rest}>
       {children}
@@ -40,6 +46,8 @@ export function H1({ children, style, ...rest }: TextProps) {
 }
 
 export function H2({ children, style, ...rest }: TextProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <Text style={[styles.h2, style]} {...rest}>
       {children}
@@ -48,6 +56,8 @@ export function H2({ children, style, ...rest }: TextProps) {
 }
 
 export function Body({ children, style, muted, ...rest }: TextProps & { muted?: boolean }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <Text style={[styles.body, muted && { color: theme.fg.muted }, style]} {...rest}>
       {children}
@@ -57,6 +67,8 @@ export function Body({ children, style, muted, ...rest }: TextProps & { muted?: 
 
 type ButtonProps = PressableProps & { title: string; variant?: 'primary' | 'default' | 'ghost'; loading?: boolean };
 export function Button({ title, variant = 'default', loading, disabled, style, ...rest }: ButtonProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <Pressable
       disabled={disabled || loading}
@@ -80,6 +92,8 @@ export function Button({ title, variant = 'default', loading, disabled, style, .
 }
 
 export function Pill({ tone, label }: { tone?: 'ok' | 'warn' | 'bad'; label: string }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const color =
     tone === 'ok' ? theme.ok : tone === 'warn' ? theme.warn : tone === 'bad' ? theme.accent : theme.fg.muted;
   return (
@@ -91,6 +105,8 @@ export function Pill({ tone, label }: { tone?: 'ok' | 'warn' | 'bad'; label: str
 }
 
 export function Stat({ label, value, unit }: { label: string; value: string | number | null | undefined; unit?: string }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <View style={{ gap: theme.space.sm, minWidth: 120 }}>
       <Label>{label}</Label>
@@ -103,6 +119,8 @@ export function Stat({ label, value, unit }: { label: string; value: string | nu
 }
 
 export function ProgressBar({ value, charging }: { value: number; charging?: boolean }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const pct = Math.max(0, Math.min(100, value));
   return (
     <View style={styles.bar}>
@@ -118,10 +136,14 @@ export function ProgressBar({ value, charging }: { value: number; charging?: boo
 }
 
 export function Divider() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return <View style={{ height: 1, backgroundColor: theme.border.subtle, marginVertical: theme.space.xl }} />;
 }
 
 export function ErrorBox({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <View style={styles.error}>
       <Text style={{ color: theme.fg.primary, fontSize: theme.size.sm }}>{children}</Text>
@@ -130,10 +152,27 @@ export function ErrorBox({ children }: { children: React.ReactNode }) {
 }
 
 export function BottomBar({ children, style, ...rest }: ViewProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
+  // Create a transparent version of the base background color
+  const baseColor = theme.bg.base;
+  let transparentBase = 'rgba(10, 10, 12, 0)'; // fallback dark
+  
+  if (baseColor.startsWith('#')) {
+    const hex = baseColor.replace('#', '');
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      transparentBase = `rgba(${r}, ${g}, ${b}, 0)`;
+    }
+  }
+
   return (
     <View style={[styles.bottomBarContainer, style]} {...rest}>
       <LinearGradient 
-        colors={['rgba(10, 10, 12, 0)', '#0a0a0c']} 
+        colors={[transparentBase, theme.bg.base]} 
         style={styles.bottomBarFade} 
         pointerEvents="none" 
       />
@@ -144,7 +183,7 @@ export function BottomBar({ children, style, ...rest }: ViewProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.bg.surface,
     borderColor: theme.border.subtle,

@@ -6,9 +6,11 @@ import { router } from 'expo-router';
 import { api, Region, getCurrency } from '../src/api';
 import { getOrCreateDeviceId, session } from '../src/storage';
 import { Body, Button, ErrorBox, Label } from '../src/components/ui';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 export default function RegionPicker() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [regions, setRegions] = useState<Region[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [threshold, setThreshold] = useState<string>('0.10');
@@ -153,7 +155,7 @@ export default function RegionPicker() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
   card: {

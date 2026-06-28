@@ -7,9 +7,11 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Body, Button, ErrorBox, H1, Label, Pill } from '../src/components/ui';
 import { api } from '../src/api';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 export default function NotificationsOnboarding() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +83,7 @@ export default function NotificationsOnboarding() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   header: {
     paddingHorizontal: theme.space['2xl'],

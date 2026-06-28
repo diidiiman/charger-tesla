@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { theme } from '../src/theme';
+import { ThemeProvider, useTheme } from '../src/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -14,10 +14,11 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export default function RootLayout() {
+function AppNavigator() {
+  const { theme, themeMode } = useTheme();
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style={theme.mode === 'light' ? 'dark' : 'light'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.bg.base },
@@ -39,5 +40,13 @@ export default function RootLayout() {
         <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <AppNavigator />
+    </ThemeProvider>
   );
 }

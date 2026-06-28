@@ -3,7 +3,7 @@ import { Platform, StyleSheet, View, Linking, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, SubscriptionStatus } from '../src/api';
 import { Body, Button, Card, ErrorBox, H1, H2, Label, Pill, BottomBar } from '../src/components/ui';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 /**
  * Upgrade screen.
@@ -15,6 +15,8 @@ import { theme } from '../src/theme';
  * client or production), the native IAP path is taken.
  */
 export default function Upgrade() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,7 +186,7 @@ export default function Upgrade() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
 });

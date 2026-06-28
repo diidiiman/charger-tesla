@@ -19,7 +19,7 @@ import {
   Stat,
   BottomBar,
 } from '../src/components/ui';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 function chargingTone(state?: string) {
   if (!state) return undefined;
@@ -30,6 +30,8 @@ function chargingTone(state?: string) {
 }
 
 export default function Dashboard() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -297,7 +299,7 @@ export default function Dashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

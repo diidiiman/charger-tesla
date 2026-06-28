@@ -6,9 +6,11 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { api, Region, UserSettings, getCurrency } from '../src/api';
 import { Body, Button, ErrorBox, Label, BottomBar } from '../src/components/ui';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 export default function Settings() {
+  const { theme, themeMode, setThemeMode } = useTheme();
+  const styles = createStyles(theme);
   const [regions, setRegions] = useState<Region[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [threshold, setThreshold] = useState('');
@@ -17,6 +19,7 @@ export default function Settings() {
   const [autoCharge, setAutoCharge] = useState(false);
   const [hasPro, setHasPro] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [selectedThemeMode, setSelectedThemeMode] = useState<'system' | 'light' | 'dark'>(themeMode);
   const [teslaLinked, setTeslaLinked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,6 +47,7 @@ export default function Settings() {
     setError(null); setBusy(true);
     try {
       const t = parseFloat(threshold);
+      await setThemeMode(selectedThemeMode);
       const updated = await api.putSettings({
         region: settings.region ?? undefined,
         threshold_price: Number.isFinite(t) ? t : undefined,
@@ -173,6 +177,26 @@ export default function Settings() {
           </View>
         </View>
 
+        <View style={[styles.card, { marginTop: theme.space.lg }]}>
+          <Label>Appearance</Label>
+          <View style={{ marginTop: theme.space.md }}>
+            <Pressable onPress={() => setSelectedThemeMode('system')} style={styles.row}>
+              <Body style={{ fontWeight: selectedThemeMode === 'system' ? '600' : '400' }}>System Default</Body>
+              <View style={[styles.radio, selectedThemeMode === 'system' && { borderColor: theme.accent, backgroundColor: theme.accent }]} />
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: theme.border.subtle }} />
+            <Pressable onPress={() => setSelectedThemeMode('light')} style={styles.row}>
+              <Body style={{ fontWeight: selectedThemeMode === 'light' ? '600' : '400' }}>Light Mode</Body>
+              <View style={[styles.radio, selectedThemeMode === 'light' && { borderColor: theme.accent, backgroundColor: theme.accent }]} />
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: theme.border.subtle }} />
+            <Pressable onPress={() => setSelectedThemeMode('dark')} style={styles.row}>
+              <Body style={{ fontWeight: selectedThemeMode === 'dark' ? '600' : '400' }}>Dark Mode</Body>
+              <View style={[styles.radio, selectedThemeMode === 'dark' && { borderColor: theme.accent, backgroundColor: theme.accent }]} />
+            </Pressable>
+          </View>
+        </View>
+
         {error && <View style={{ marginTop: theme.space.lg }}><ErrorBox>{error}</ErrorBox></View>}
 
         <View style={{ flex: 1, minHeight: theme.space['2xl'] }} />
@@ -192,7 +216,7 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
   card: {

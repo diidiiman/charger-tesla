@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { api } from '../src/api';
 import { Body, Button, Card, H2, Label } from '../src/components/ui';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 function getVehicleYear(vin: string): number {
   if (!vin || vin.length < 10) return 2024; // Default to new
@@ -21,6 +21,8 @@ function getVehicleYear(vin: string): number {
 }
 
 export default function Pairing() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,6 +84,6 @@ export default function Pairing() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
 });

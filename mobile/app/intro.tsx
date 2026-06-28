@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Body, Button, H1, Label, Pill } from '../src/components/ui';
 import { introSeen } from '../src/storage';
-import { theme } from '../src/theme';
+import { useTheme, Theme } from '../src/theme';
 
 type Slide = { label: string; title: string; body: string };
 
@@ -46,6 +46,8 @@ const SLIDES: Slide[] = [
 const { width } = Dimensions.get('window');
 
 export default function Intro() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const ref = useRef<FlatList>(null);
   const [index, setIndex] = useState(0);
 
@@ -117,7 +119,7 @@ export default function Intro() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg.base },
   header: {
     paddingHorizontal: theme.space['2xl'],

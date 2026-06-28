@@ -8,6 +8,48 @@ import { api, Region, UserSettings, getCurrency } from '../src/api';
 import { Body, Button, ErrorBox, Label, BottomBar } from '../src/components/ui';
 import { useTheme, Theme } from '../src/theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.bg.base },
+  scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
+  card: {
+    backgroundColor: theme.bg.surface,
+    borderColor: theme.border.subtle,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.space['2xl'],
+  },
+  row: {
+    paddingVertical: theme.space.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  radio: {
+    width: 18, height: 18, borderRadius: 9,
+    borderWidth: 1, borderColor: theme.border.strong,
+  },
+  checkbox: {
+    width: 18, height: 18, borderRadius: 4,
+    borderWidth: 1, borderColor: theme.border.strong,
+  },
+  checkboxActive: {
+    borderColor: theme.accent, backgroundColor: theme.accent,
+  },
+  input: {
+    marginTop: theme.space.md,
+    height: 44,
+    paddingHorizontal: theme.space.md,
+    backgroundColor: theme.bg.input,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    borderRadius: theme.radius.md,
+    color: theme.fg.primary,
+    fontVariant: ['tabular-nums'],
+    fontSize: theme.size.base,
+  },
+});
+
+
 export default function Settings() {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = createStyles(theme);
@@ -216,43 +258,4 @@ export default function Settings() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base },
-  scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
-  card: {
-    backgroundColor: theme.bg.surface,
-    borderColor: theme.border.subtle,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.space['2xl'],
-  },
-  row: {
-    paddingVertical: theme.space.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  radio: {
-    width: 18, height: 18, borderRadius: 9,
-    borderWidth: 1, borderColor: theme.border.strong,
-  },
-  checkbox: {
-    width: 18, height: 18, borderRadius: 4,
-    borderWidth: 1, borderColor: theme.border.strong,
-  },
-  checkboxActive: {
-    borderColor: theme.accent, backgroundColor: theme.accent,
-  },
-  input: {
-    marginTop: theme.space.md,
-    height: 44,
-    paddingHorizontal: theme.space.md,
-    backgroundColor: theme.bg.input,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    borderRadius: theme.radius.md,
-    color: theme.fg.primary,
-    fontVariant: ['tabular-nums'],
-    fontSize: theme.size.base,
-  },
-});
+

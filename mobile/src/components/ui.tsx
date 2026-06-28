@@ -13,6 +13,98 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, Theme } from '../theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  card: {
+    backgroundColor: theme.bg.surface,
+    borderColor: theme.border.subtle,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.space['2xl'],
+  },
+  label: {
+    color: theme.fg.faint,
+    fontSize: theme.size.xs,
+    letterSpacing: 1.1,
+    fontWeight: '500',
+  },
+  h1: { color: theme.fg.primary, fontSize: theme.size.xl, fontWeight: '600', letterSpacing: -0.5 },
+  h2: { color: theme.fg.primary, fontSize: theme.size.lg, fontWeight: '600' },
+  body: { color: theme.fg.primary, fontSize: theme.size.base, lineHeight: 22 },
+  btn: {
+    height: 44,
+    paddingHorizontal: theme.space.lg,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    backgroundColor: theme.bg.input,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: theme.space.sm,
+    minWidth: 120,
+  },
+  btnPrimary: { backgroundColor: theme.accent, borderColor: theme.accent },
+  btnGhost: { backgroundColor: 'transparent' },
+  btnText: { color: theme.fg.primary, fontSize: theme.size.sm, fontWeight: '500' },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 26,
+    paddingHorizontal: theme.space.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  pillText: { fontSize: theme.size.xs, letterSpacing: 0.8, fontWeight: '500' },
+  statValue: {
+    color: theme.fg.primary,
+    fontSize: theme.size.xl,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.5,
+  },
+  statUnit: { color: theme.fg.faint, fontSize: theme.size.base, fontVariant: ['tabular-nums'] },
+  bar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: theme.bg.input,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    overflow: 'hidden',
+  },
+  error: {
+    borderWidth: 1,
+    borderColor: theme.accent,
+    backgroundColor: theme.accentSoft,
+    padding: theme.space.md,
+    borderRadius: theme.radius.sm,
+  },
+  bottomBarContainer: {
+    position: 'relative',
+    backgroundColor: theme.bg.base,
+    width: screenWidth,
+  },
+  bottomBarFade: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    width: screenWidth,
+    height: 20,
+  },
+  bottomBarContent: {
+    paddingHorizontal: theme.space['2xl'],
+    paddingBottom: theme.space['2xl'],
+    paddingTop: theme.space.md,
+    backgroundColor: theme.bg.base,
+    flexDirection: 'row',
+    gap: theme.space.sm,
+  },
+});
+
+
 const screenWidth = Dimensions.get('window').width;
 
 export function Card({ style, children, ...rest }: ViewProps) {
@@ -183,93 +275,4 @@ export function BottomBar({ children, style, ...rest }: ViewProps) {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.bg.surface,
-    borderColor: theme.border.subtle,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.space['2xl'],
-  },
-  label: {
-    color: theme.fg.faint,
-    fontSize: theme.size.xs,
-    letterSpacing: 1.1,
-    fontWeight: '500',
-  },
-  h1: { color: theme.fg.primary, fontSize: theme.size.xl, fontWeight: '600', letterSpacing: -0.5 },
-  h2: { color: theme.fg.primary, fontSize: theme.size.lg, fontWeight: '600' },
-  body: { color: theme.fg.primary, fontSize: theme.size.base, lineHeight: 22 },
-  btn: {
-    height: 44,
-    paddingHorizontal: theme.space.lg,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    backgroundColor: theme.bg.input,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: theme.space.sm,
-    minWidth: 120,
-  },
-  btnPrimary: { backgroundColor: theme.accent, borderColor: theme.accent },
-  btnGhost: { backgroundColor: 'transparent' },
-  btnText: { color: theme.fg.primary, fontSize: theme.size.sm, fontWeight: '500' },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 26,
-    paddingHorizontal: theme.space.md,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-  },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  pillText: { fontSize: theme.size.xs, letterSpacing: 0.8, fontWeight: '500' },
-  statValue: {
-    color: theme.fg.primary,
-    fontSize: theme.size.xl,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-    letterSpacing: -0.5,
-  },
-  statUnit: { color: theme.fg.faint, fontSize: theme.size.base, fontVariant: ['tabular-nums'] },
-  bar: {
-    width: '100%',
-    height: 6,
-    backgroundColor: theme.bg.input,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    overflow: 'hidden',
-  },
-  error: {
-    borderWidth: 1,
-    borderColor: theme.accent,
-    backgroundColor: theme.accentSoft,
-    padding: theme.space.md,
-    borderRadius: theme.radius.sm,
-  },
-  bottomBarContainer: {
-    position: 'relative',
-    backgroundColor: theme.bg.base,
-    width: screenWidth,
-  },
-  bottomBarFade: {
-    position: 'absolute',
-    top: -20,
-    left: 0,
-    width: screenWidth,
-    height: 20,
-  },
-  bottomBarContent: {
-    paddingHorizontal: theme.space['2xl'],
-    paddingBottom: theme.space['2xl'],
-    paddingTop: theme.space.md,
-    backgroundColor: theme.bg.base,
-    flexDirection: 'row',
-    gap: theme.space.sm,
-  },
-});
+

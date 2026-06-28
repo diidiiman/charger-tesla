@@ -7,6 +7,11 @@ import { api } from '../src/api';
 import { Body, Button, Card, H2, Label } from '../src/components/ui';
 import { useTheme, Theme } from '../src/theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.bg.base },
+});
+
+
 function getVehicleYear(vin: string): number {
   if (!vin || vin.length < 10) return 2024; // Default to new
   const char = vin.charAt(9).toUpperCase();
@@ -84,6 +89,4 @@ export default function Pairing() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base },
-});
+

@@ -5,6 +5,12 @@ import { api, SubscriptionStatus } from '../src/api';
 import { Body, Button, Card, ErrorBox, H1, H2, Label, Pill, BottomBar } from '../src/components/ui';
 import { useTheme, Theme } from '../src/theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.bg.base },
+  scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
+});
+
+
 /**
  * Upgrade screen.
  *
@@ -186,7 +192,4 @@ export default function Upgrade() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base },
-  scrollContent: { flexGrow: 1, padding: theme.space['2xl'] },
-});
+

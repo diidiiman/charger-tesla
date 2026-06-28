@@ -9,6 +9,26 @@ import { Body, Button, ErrorBox, H1, Label, Pill } from '../src/components/ui';
 import { api } from '../src/api';
 import { useTheme, Theme } from '../src/theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.bg.base },
+  header: {
+    paddingHorizontal: theme.space['2xl'],
+    paddingTop: theme.space.lg,
+    paddingBottom: theme.space['2xl'],
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: theme.bg.surface,
+    borderColor: theme.border.subtle,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.space['2xl'],
+  },
+});
+
+
 export default function NotificationsOnboarding() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -83,21 +103,4 @@ export default function NotificationsOnboarding() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base },
-  header: {
-    paddingHorizontal: theme.space['2xl'],
-    paddingTop: theme.space.lg,
-    paddingBottom: theme.space['2xl'],
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  card: {
-    backgroundColor: theme.bg.surface,
-    borderColor: theme.border.subtle,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.space['2xl'],
-  },
-});
+

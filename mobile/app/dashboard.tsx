@@ -21,6 +21,19 @@ import {
 } from '../src/components/ui';
 import { useTheme, Theme } from '../src/theme';
 
+const createStyles = (theme: Theme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.bg.base },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  grid: {
+    marginTop: theme.space.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.space.xl,
+  },
+});
+
+
 function chargingTone(state?: string) {
   if (!state) return undefined;
   const s = state.toLowerCase();
@@ -299,14 +312,4 @@ export default function Dashboard() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg.base },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  grid: {
-    marginTop: theme.space.lg,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.space.xl,
-  },
-});
+

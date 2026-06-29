@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { api, Region, UserSettings, getCurrency } from '../src/api';
-import { Body, Button, ErrorBox, Label, BottomBar } from '../src/components/ui';
+import { Body, Button, ErrorBox, Label, BottomBar, Select } from '../src/components/ui';
 import { useTheme, Theme } from '../src/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
@@ -120,51 +119,12 @@ export default function Settings() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Label>Region</Label>
-          {Platform.OS === 'ios' ? (
-            <>
-              <Pressable
-                style={{ marginTop: theme.space.lg, height: 44, paddingHorizontal: theme.space.md, borderRadius: theme.radius.md, backgroundColor: theme.bg.input, borderWidth: 1, borderColor: theme.border.subtle, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-                onPress={() => setPickerVisible(true)}
-              >
-                <Body style={{ color: settings?.region ? theme.fg.primary : theme.fg.faint }}>
-                  {settings?.region ? `${regions?.find(r => r.code === settings.region)?.label} (${settings.region})` : 'Select a region...'}
-                </Body>
-                <Feather name="chevron-down" size={20} color={theme.fg.primary} />
-              </Pressable>
-      
-              <Modal visible={pickerVisible} animationType="slide" transparent={true}>
-                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                  <View style={{ backgroundColor: theme.bg.surface, paddingBottom: 40, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: theme.space.md, borderBottomWidth: 1, borderBottomColor: theme.border.subtle }}>
-                      <Button title="Done" variant="ghost" onPress={() => setPickerVisible(false)} />
-                    </View>
-                    <Picker
-                      selectedValue={settings?.region || ''}
-                      onValueChange={(itemValue) => settings && setSettings({ ...settings, region: itemValue })}
-                    >
-                      {regions?.map((item) => (
-                        <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} color={theme.fg.primary} />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
-              </Modal>
-            </>
-          ) : (
-            <View style={{ marginTop: theme.space.lg, overflow: 'hidden', borderRadius: theme.radius.md, backgroundColor: theme.bg.input, borderWidth: 1, borderColor: theme.border.subtle }}>
-              <Picker
-                selectedValue={settings?.region || ''}
-                onValueChange={(itemValue) => settings && setSettings({ ...settings, region: itemValue })}
-                style={{ color: theme.fg.primary }}
-                dropdownIconColor={theme.fg.primary}
-              >
-                <Picker.Item label="Select a region..." value="" />
-                {regions?.map((item) => (
-                  <Picker.Item key={item.code} label={`${item.label} (${item.code})`} value={item.code} />
-                ))}
-              </Picker>
-            </View>
-          )}
+          <Select
+            options={(regions || []).map(r => ({ label: `${r.label} (${r.code})`, value: r.code }))}
+            value={settings?.region || null}
+            onChange={(val) => settings && setSettings({ ...settings, region: val })}
+            placeholder="Select a region..."
+          />
         </View>
 
         <View style={[styles.card, { marginTop: theme.space.lg }]}>

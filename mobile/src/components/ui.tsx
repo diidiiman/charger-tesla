@@ -9,7 +9,10 @@ import {
   View,
   ViewProps,
   Dimensions,
+  Modal,
+  ScrollView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, Theme } from '../theme';
 
@@ -272,6 +275,81 @@ export function BottomBar({ children, style, ...rest }: ViewProps) {
         {children}
       </View>
     </View>
+  );
+}
+
+export function Select({
+  options,
+  value,
+  onChange,
+  placeholder = "Select...",
+}: {
+  options: { label: string; value: string }[];
+  value: string | null;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const [open, setOpen] = React.useState(false);
+
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <Pressable
+        style={{
+          marginTop: theme.space.lg,
+          height: 44,
+          paddingHorizontal: theme.space.md,
+          borderRadius: theme.radius.md,
+          backgroundColor: theme.bg.input,
+          borderWidth: 1,
+          borderColor: theme.border.subtle,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+        onPress={() => setOpen(true)}
+      >
+        <Body style={{ color: selectedOption ? theme.fg.primary : theme.fg.faint }}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </Body>
+        <Feather name="chevron-down" size={20} color={theme.fg.primary} />
+      </Pressable>
+
+      <Modal visible={open} animationType="slide" transparent={true} onRequestClose={() => setOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setOpen(false)} />
+          <View style={{ backgroundColor: theme.bg.surface, paddingBottom: 40, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg, maxHeight: '60%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: theme.space.md, borderBottomWidth: 1, borderBottomColor: theme.border.subtle }}>
+              <Button title="Done" variant="ghost" onPress={() => setOpen(false)} />
+            </View>
+            <ScrollView>
+              {options.map((item) => (
+                <Pressable
+                  key={item.value}
+                  style={{
+                    padding: theme.space.lg,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.border.subtle,
+                    backgroundColor: item.value === value ? theme.bg.input : theme.bg.surface,
+                  }}
+                  onPress={() => {
+                    onChange(item.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Body style={{ textAlign: 'center', fontWeight: item.value === value ? '600' : '400' }}>
+                    {item.label}
+                  </Body>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 

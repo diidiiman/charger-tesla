@@ -42,6 +42,14 @@
             "kotlinVersion": "2.2.0"
           }
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "tesla-nord-pool",
+          "organization": "clanker-systems"
+        }
       ]
     ],
     "extra": {

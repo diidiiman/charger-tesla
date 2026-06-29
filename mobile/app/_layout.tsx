@@ -15,10 +15,10 @@ Sentry.init({
   // Enable Logs
   enableLogs: true,
 
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration()],
+  // Session Replay is not yet compatible with New Architecture (Fabric) and causes startup crashes.
+  // replaysSessionSampleRate: 0.1,
+  // replaysOnErrorSampleRate: 1,
+  // integrations: [Sentry.mobileReplayIntegration()],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,

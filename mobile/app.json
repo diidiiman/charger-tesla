@@ -31,11 +31,15 @@
       "expo-asset",
       "expo-web-browser",
       "react-native-iap",
+      "./plugins/withProguardRules.js",
       [
         "expo-build-properties",
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "kotlinVersion": "2.2.0"
           }
         }
       ]

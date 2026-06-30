@@ -47,7 +47,9 @@
           "project": "tesla-nord-pool",
           "organization": "clanker-systems"
         }
-      ]
+      ],
+      "expo-font",
+      "@sentry/react-native"
     ],
     "extra": {
       "apiBase": "${EXPO_PUBLIC_API_BASE}",

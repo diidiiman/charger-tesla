@@ -6,6 +6,17 @@ module.exports = function withSentryProperties(config) {
   return withDangerousMod(config, [
     'android',
     async (config) => {
+      // 1. ProGuard Rules for missing OpenIAP package
+      const file = path.join(config.modRequest.platformProjectRoot, 'app', 'proguard-rules.pro');
+      if (fs.existsSync(file)) {
+        let contents = fs.readFileSync(file, 'utf8');
+        const rules = `\n-keep class dev.hyo.openiap.** { *; }\n-keep class com.android.billingclient.** { *; }\n`;
+        if (!contents.includes('-keep class dev.hyo.openiap.**')) {
+          contents += rules;
+          fs.writeFileSync(file, contents);
+        }
+      }
+
       // 2. Sentry Properties
       const sentryPropFile = path.join(config.modRequest.platformProjectRoot, 'sentry.properties');
       const sentryProps = `defaults.url=https://de.sentry.io/

@@ -45,9 +45,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeMode, setThemeModeState] = useState<'system' | 'light' | 'dark'>('system');
 
   useEffect(() => {
-    themePreference.get().then((pref) => {
-      if (pref) setThemeModeState(pref);
-    });
+    themePreference.get()
+      .then((pref) => {
+        if (pref) setThemeModeState(pref);
+      })
+      .catch((e) => console.warn('Failed to load theme preference:', e));
   }, []);
 
   const setThemeMode = async (mode: 'system' | 'light' | 'dark') => {

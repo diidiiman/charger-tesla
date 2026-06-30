@@ -31,22 +31,19 @@
       "expo-asset",
       "expo-web-browser",
       "react-native-iap",
-      "./plugins/withProguardRules.js",
       [
         "expo-build-properties",
         {
           "ios": {
             "useFrameworks": "static"
-          },
-          "android": {
-            "kotlinVersion": "2.0.21"
           }
         }
       ],
+      "./plugins/withSentryProperties.js",
       [
         "@sentry/react-native/expo",
         {
-          "url": "https://sentry.io/",
+          "url": "https://de.sentry.io/",
           "project": "tesla-nord-pool",
           "organization": "clanker-systems"
         }

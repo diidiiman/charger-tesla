@@ -171,34 +171,26 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         else:
             schedules_to_delete = [s["id"] for s in sched_list if "id" in s]
             
+        woke_up = False
         if schedules_to_delete:
             try:
                 await tesla.wake_up(token, user.tesla.vehicle_id)
+                await asyncio.sleep(5)
+                woke_up = True
             except Exception:
                 pass
             for sched_id in schedules_to_delete:
-                success = False
-                for _ in range(6):
-                    try:
-                        await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
-                        success = True
-                        break
-                    except ValueError:
-                        await asyncio.sleep(5)
-                    except Exception as e:
-                        log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
-                        break
-                if not success:
-                    log.error("Failed completely to remove schedule %s", sched_id)
+                await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
         
         if not blocks:
             return
             
-        # If we have blocks to send, wake the car up
-        if not sched_list:
+        # If we have blocks to send, wake the car up if we haven't already
+        if not woke_up:
             try:
                 await tesla.wake_up(token, user.tesla.vehicle_id)
                 await asyncio.sleep(5)
+                woke_up = True
             except Exception:
                 pass
 
@@ -216,46 +208,34 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             start_minutes = start_dt.hour * 60 + start_dt.minute
             end_minutes = end_dt.hour * 60 + end_dt.minute
             
-            crosses_midnight = start_dt.date() < end_dt.date()
             if target_date is None and start_dt.date() == now_local.date():
                 now_minutes = now_local.hour * 60 + now_local.minute
                 if start_minutes < now_minutes:
                     start_minutes = now_minutes + 2
-                    if crosses_midnight:
-                        if start_minutes >= 1440:
-                            start_minutes -= 1440
-                            if start_minutes >= end_minutes:
-                                continue
-                    else:
-                        if end_minutes <= start_minutes:
-                            continue
+                    # Double check if end_minutes is now before start_minutes
+                    if end_minutes <= start_minutes:
+                        continue
             
-            success = False
-            for attempt in range(6):
-                try:
-                    res = await tesla.add_charge_schedule(
-                        access_token=token,
-                        vehicle_id=user.tesla.vehicle_id,
-                        days_of_week="ALL",
-                        enabled=True,
-                        lat=float(user.home_latitude),
-                        lon=float(user.home_longitude),
-                        start_time=start_minutes,
-                        end_time=end_minutes,
-                        one_time=True,
-                        id=base_id + idx
-                    )
-                    log.info("add_charge_schedule response for user=%s: %s", user.id, res)
-                    success = True
-                    break
-                except ValueError:
-                    await asyncio.sleep(5)
-                except Exception as e:
-                    log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
-                    break
-                    
-            if not success:
-                log.error("add_charge_schedule failed completely after retries for block %s to %s for user=%s", start_dt, end_dt, user.id)
+            # Tesla days_of_week mapping for string inputs when setting schedules
+            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
+            days_of_week_str = days_map[start_dt.weekday()]
+
+            try:
+                res = await tesla.add_charge_schedule(
+                    access_token=token,
+                    vehicle_id=user.tesla.vehicle_id,
+                    days_of_week=days_of_week_str,
+                    enabled=True,
+                    lat=float(user.home_latitude),
+                    lon=float(user.home_longitude),
+                    start_time=start_minutes,
+                    end_time=end_minutes,
+                    one_time=True,
+                    id=base_id + idx
+                )
+                log.info("add_charge_schedule response for user=%s: %s", user.id, res)
+            except Exception as e:
+                log.error("add_charge_schedule failed for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
                 continue
 
             if user.push_token and user.price_change_reminder:

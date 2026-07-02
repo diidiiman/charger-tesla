@@ -213,15 +213,15 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     if end_minutes <= start_minutes:
                         continue
             
-            # Tesla days_of_week mapping for string inputs when setting schedules
-            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-            days_of_week_str = days_map[start_dt.weekday()]
+            # Tesla days_of_week as integer bitmask (1=Sun, 2=Mon, 4=Tue, 8=Wed, 16=Thu, 32=Fri, 64=Sat)
+            tesla_weekday_mask = [2, 4, 8, 16, 32, 64, 1]
+            days_of_week_val = tesla_weekday_mask[start_dt.weekday()]
 
             try:
                 res = await tesla.add_charge_schedule(
                     access_token=token,
                     vehicle_id=user.tesla.vehicle_id,
-                    days_of_week=days_of_week_str,
+                    days_of_week=days_of_week_val,
                     enabled=True,
                     lat=float(user.home_latitude),
                     lon=float(user.home_longitude),

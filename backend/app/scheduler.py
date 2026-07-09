@@ -84,11 +84,14 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
     # 2. Fetch prices for the target timeframe
     if target_date is not None:
-        start_time = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=tz)
-        end_time = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=tz)
+        start_local = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=tz)
+        end_local = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=tz)
     else:
-        start_time = now.replace(minute=0, second=0, microsecond=0)
-        end_time = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_local = (now_local + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+    start_time = start_local.astimezone(timezone.utc)
+    end_time = end_local.astimezone(timezone.utc)
 
     stmt = select(prices.RegionPrice).where(
         prices.RegionPrice.region == user.region,
@@ -180,7 +183,19 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             except Exception:
                 pass
             for sched_id in schedules_to_delete:
-                await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+                success = False
+                for _ in range(6):
+                    try:
+                        await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+                        success = True
+                        break
+                    except ValueError:
+                        await asyncio.sleep(5)
+                    except Exception as e:
+                        log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
+                        break
+                if not success:
+                    log.error("Failed completely to remove schedule %s", sched_id)
         
         if not blocks:
             return
@@ -220,22 +235,32 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
             days_of_week_str = days_map[start_dt.weekday()]
 
-            try:
-                res = await tesla.add_charge_schedule(
-                    access_token=token,
-                    vehicle_id=user.tesla.vehicle_id,
-                    days_of_week=days_of_week_str,
-                    enabled=True,
-                    lat=float(user.home_latitude),
-                    lon=float(user.home_longitude),
-                    start_time=start_minutes,
-                    end_time=end_minutes,
-                    one_time=True,
-                    id=base_id + idx
-                )
-                log.info("add_charge_schedule response for user=%s: %s", user.id, res)
-            except Exception as e:
-                log.error("add_charge_schedule failed for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
+            success = False
+            for attempt in range(6):
+                try:
+                    res = await tesla.add_charge_schedule(
+                        access_token=token,
+                        vehicle_id=user.tesla.vehicle_id,
+                        days_of_week=days_of_week_str,
+                        enabled=True,
+                        lat=float(user.home_latitude),
+                        lon=float(user.home_longitude),
+                        start_time=start_minutes,
+                        end_time=end_minutes,
+                        one_time=True,
+                        id=base_id + idx
+                    )
+                    log.info("add_charge_schedule response for user=%s: %s", user.id, res)
+                    success = True
+                    break
+                except ValueError:
+                    await asyncio.sleep(5)
+                except Exception as e:
+                    log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
+                    break
+                    
+            if not success:
+                log.error("add_charge_schedule failed completely after retries for block %s to %s for user=%s", start_dt, end_dt, user.id)
                 continue
 
             if user.push_token and user.price_change_reminder:

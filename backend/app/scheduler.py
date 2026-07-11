@@ -84,14 +84,11 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
     # 2. Fetch prices for the target timeframe
     if target_date is not None:
-        start_local = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=tz)
-        end_local = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=tz)
+        start_time = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=tz)
+        end_time = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=tz)
     else:
-        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_local = (now_local + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
-        
-    start_time = start_local.astimezone(timezone.utc)
-    end_time = end_local.astimezone(timezone.utc)
+        start_time = now.replace(minute=0, second=0, microsecond=0)
+        end_time = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
 
     stmt = select(prices.RegionPrice).where(
         prices.RegionPrice.region == user.region,
@@ -190,6 +187,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         success = True
                         break
                     except ValueError:
+                        await tesla.wake_up(token, user.tesla.vehicle_id)
                         await asyncio.sleep(5)
                     except Exception as e:
                         log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
@@ -254,6 +252,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     success = True
                     break
                 except ValueError:
+                    await tesla.wake_up(token, user.tesla.vehicle_id)
                     await asyncio.sleep(5)
                 except Exception as e:
                     log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)

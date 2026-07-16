@@ -266,12 +266,19 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             await ensure_awake()
             for update in schedules_to_update:
                 success = False
+                
+                days_list = []
+                for i in range(7):
+                    if update["days_of_week"] & TESLA_MASKS[i]:
+                        days_list.append(days_map_str[i])
+                days_of_week_str = ",".join(days_list)
+                
                 for _ in range(6):
                     try:
                         await tesla.add_charge_schedule(
                             access_token=token,
                             vehicle_id=user.tesla.vehicle_id,
-                            days_of_week=update["days_of_week"],
+                            days_of_week=days_of_week_str,
                             enabled=True,
                             lat=float(update["lat"]),
                             lon=float(update["lon"]),
@@ -297,6 +304,13 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
             for idx, block in enumerate(desired_blocks):
                 mask_val = target_mask if target_date else today_mask
+                
+                days_list = []
+                for i in range(7):
+                    if mask_val & TESLA_MASKS[i]:
+                        days_list.append(days_map_str[i])
+                days_of_week_str = ",".join(days_list)
+                
                 start_dt = block["dt"]
                 end_dt = block["end_dt"]
                 
@@ -306,7 +320,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         res = await tesla.add_charge_schedule(
                             access_token=token,
                             vehicle_id=user.tesla.vehicle_id,
-                            days_of_week=mask_val,
+                            days_of_week=days_of_week_str,
                             enabled=True,
                             lat=float(user.home_latitude),
                             lon=float(user.home_longitude),

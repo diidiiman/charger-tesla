@@ -144,77 +144,21 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         else:
             sched_list = []
         
-        schedules_to_delete = []
-        if target_date is not None:
-            target_weekday = target_date.weekday()
-            today_weekday = now_local.weekday()
-            
-            tesla_weekday_mask = [2, 4, 8, 16, 32, 64, 1]
-            target_mask = tesla_weekday_mask[target_weekday]
-            today_mask = tesla_weekday_mask[today_weekday]
-            
-            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-            
-            for sched in sched_list:
-                if "id" not in sched:
-                    continue
-                
-                sched_day = sched.get("days_of_week")
-                
-                # Check both string ("FRI") and integer bitmask (32) formats
-                # in case the Tesla API returns either
-                is_target = (str(sched_day) == str(target_mask)) or (str(sched_day) == days_map[target_weekday])
-                is_today = (str(sched_day) == str(today_mask)) or (str(sched_day) == days_map[today_weekday])
-                
-                if is_target or not is_today:
-                    schedules_to_delete.append(sched["id"])
-        else:
-            schedules_to_delete = [s["id"] for s in sched_list if "id" in s]
-            
-        woke_up = False
-        if schedules_to_delete:
-            try:
-                await tesla.wake_up(token, user.tesla.vehicle_id)
-                await asyncio.sleep(5)
-                woke_up = True
-            except Exception:
-                pass
-            for sched_id in schedules_to_delete:
-                success = False
-                for _ in range(6):
-                    try:
-                        await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
-                        success = True
-                        break
-                    except ValueError:
-                        await tesla.wake_up(token, user.tesla.vehicle_id)
-                        await asyncio.sleep(5)
-                    except Exception as e:
-                        log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
-                        break
-                if not success:
-                    log.error("Failed completely to remove schedule %s", sched_id)
+        # Determine bitmasks
+        TESLA_MASKS = [2, 4, 8, 16, 32, 64, 1]  # MON, TUE, WED, THU, FRI, SAT, SUN
+        days_map_str = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
         
-        if not blocks:
-            return
-            
-        # If we have blocks to send, wake the car up if we haven't already
-        if not woke_up:
-            try:
-                await tesla.wake_up(token, user.tesla.vehicle_id)
-                await asyncio.sleep(5)
-                woke_up = True
-            except Exception:
-                pass
-
-        import time
-        base_id = int(time.time())
-
-        for idx, block in enumerate(blocks):
+        target_mask = 0
+        if target_date is not None:
+            target_mask = TESLA_MASKS[target_date.weekday()]
+        today_mask = TESLA_MASKS[now_local.weekday()]
+        
+        # Convert desired blocks into time windows
+        desired_blocks = []
+        for block in blocks:
             start_dt = block[0].valid_from.astimezone(tz)
             end_dt = block[-1].valid_to.astimezone(tz)
             
-            # Skip blocks that have completely passed today
             if target_date is None and end_dt <= now_local:
                 continue
 
@@ -225,49 +169,171 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 now_minutes = now_local.hour * 60 + now_local.minute
                 if start_minutes < now_minutes:
                     start_minutes = now_minutes + 2
-                    # Double check if end_minutes is now before start_minutes
                     if end_minutes <= start_minutes:
                         continue
-            
-            # Tesla days_of_week mapping for string inputs when setting schedules
-            days_map = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-            days_of_week_str = days_map[start_dt.weekday()]
+            desired_blocks.append({"start": start_minutes, "end": end_minutes, "dt": start_dt, "end_dt": end_dt})
 
-            success = False
-            for attempt in range(6):
+        schedules_to_delete = []
+        schedules_to_update = []
+        
+        for sched in sched_list:
+            if "id" not in sched:
+                continue
+            sched_id = int(sched["id"])
+            
+            # Handle days_of_week parsing
+            raw_days = sched.get("days_of_week", 0)
+            mask = 0
+            if isinstance(raw_days, int):
+                mask = raw_days
+            elif isinstance(raw_days, str):
                 try:
-                    res = await tesla.add_charge_schedule(
-                        access_token=token,
-                        vehicle_id=user.tesla.vehicle_id,
-                        days_of_week=days_of_week_str,
-                        enabled=True,
-                        lat=float(user.home_latitude),
-                        lon=float(user.home_longitude),
-                        start_time=start_minutes,
-                        end_time=end_minutes,
-                        one_time=True,
-                        id=base_id + idx
-                    )
-                    log.info("add_charge_schedule response for user=%s: %s", user.id, res)
-                    success = True
-                    break
+                    mask = int(raw_days)
                 except ValueError:
+                    # string like "MON,TUES"
+                    for idx, d_str in enumerate(days_map_str):
+                        if d_str in str(raw_days).upper():
+                            mask |= TESLA_MASKS[idx]
+
+            has_target = (mask & target_mask) != 0
+            has_today = (mask & today_mask) != 0
+            
+            if target_date is not None:
+                new_mask = mask
+                if has_target:
+                    new_mask = mask & ~target_mask
+                
+                # Check if this existing schedule matches one of our desired blocks perfectly
+                sched_start = sched.get("start_time")
+                sched_end = sched.get("end_time")
+                
+                matched_idx = None
+                for idx, b in enumerate(desired_blocks):
+                    if sched_start == b["start"] and sched_end == b["end"]:
+                        matched_idx = idx
+                        break
+                
+                if matched_idx is not None:
+                    # We have a matching desired block! Add target_mask back to the schedule
+                    new_mask |= target_mask
+                    # Remove it from desired_blocks so we don't recreate it
+                    desired_blocks.pop(matched_idx)
+                
+                if new_mask == 0 or (not has_today and new_mask == 0):
+                    schedules_to_delete.append(sched_id)
+                elif new_mask != mask:
+                    schedules_to_update.append({
+                        "id": sched_id,
+                        "days_of_week": new_mask,
+                        "start_time": sched_start,
+                        "end_time": sched_end,
+                        "lat": sched.get("latitude") or float(user.home_latitude),
+                        "lon": sched.get("longitude") or float(user.home_longitude)
+                    })
+            else:
+                # We are doing a full rebuild for today, delete everything
+                schedules_to_delete.append(sched_id)
+
+        woke_up = False
+        async def ensure_awake():
+            nonlocal woke_up
+            if not woke_up:
+                try:
                     await tesla.wake_up(token, user.tesla.vehicle_id)
                     await asyncio.sleep(5)
-                except Exception as e:
-                    log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
-                    break
-                    
-            if not success:
-                log.error("add_charge_schedule failed completely after retries for block %s to %s for user=%s", start_dt, end_dt, user.id)
-                continue
+                    woke_up = True
+                except Exception:
+                    pass
 
-            if user.push_token and user.price_change_reminder:
-                msg_title = "Charging Schedule Set"
-                msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
-                asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+        if schedules_to_delete:
+            await ensure_awake()
+            for sched_id in schedules_to_delete:
+                success = False
+                for _ in range(6):
+                    try:
+                        await tesla.remove_charge_schedule(token, user.tesla.vehicle_id, int(sched_id))
+                        success = True
+                        break
+                    except ValueError:
+                        await ensure_awake()
+                    except Exception as e:
+                        log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
+                        break
+                if not success:
+                    log.error("Failed completely to remove schedule %s", sched_id)
+        
+        if schedules_to_update:
+            await ensure_awake()
+            for update in schedules_to_update:
+                success = False
+                for _ in range(6):
+                    try:
+                        await tesla.add_charge_schedule(
+                            access_token=token,
+                            vehicle_id=user.tesla.vehicle_id,
+                            days_of_week=update["days_of_week"],
+                            enabled=True,
+                            lat=float(update["lat"]),
+                            lon=float(update["lon"]),
+                            start_time=update["start_time"],
+                            end_time=update["end_time"],
+                            one_time=False,
+                            id=update["id"]
+                        )
+                        success = True
+                        break
+                    except ValueError:
+                        await ensure_awake()
+                    except Exception as e:
+                        log.error("Failed to update schedule %s: %s", update["id"], e)
+                        break
+                if not success:
+                    log.error("Failed completely to update schedule %s", update["id"])
+
+        if desired_blocks:
+            await ensure_awake()
+            import time
+            base_id = int(time.time())
+
+            for idx, block in enumerate(desired_blocks):
+                mask_val = target_mask if target_date else today_mask
+                start_dt = block["dt"]
+                end_dt = block["end_dt"]
                 
-            await asyncio.sleep(2)  # Avoid rate limits when adding multiple blocks
+                success = False
+                for attempt in range(6):
+                    try:
+                        res = await tesla.add_charge_schedule(
+                            access_token=token,
+                            vehicle_id=user.tesla.vehicle_id,
+                            days_of_week=mask_val,
+                            enabled=True,
+                            lat=float(user.home_latitude),
+                            lon=float(user.home_longitude),
+                            start_time=block["start"],
+                            end_time=block["end"],
+                            one_time=False,
+                            id=base_id + idx
+                        )
+                        log.info("add_charge_schedule response for user=%s: %s", user.id, res)
+                        success = True
+                        break
+                    except ValueError:
+                        await ensure_awake()
+                    except Exception as e:
+                        log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
+                        break
+                        
+                if not success:
+                    log.error("add_charge_schedule failed completely after retries for block %s to %s for user=%s", start_dt, end_dt, user.id)
+                    continue
+
+                if user.push_token and user.price_change_reminder:
+                    msg_title = "Charging Schedule Set"
+                    msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
+                    asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
+                    
+                await asyncio.sleep(2)  # Avoid rate limits when adding multiple blocks
 
     except Exception as e:
         log.warning("failed to sync schedules for user=%s: %s", user.id, e)

@@ -154,7 +154,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         today_mask = TESLA_MASKS[now_local.weekday()]
         
         # Convert desired blocks into time windows
-        desired_blocks = []
+        raw_desired_blocks = []
         for block in blocks:
             start_dt = block[0].valid_from.astimezone(tz)
             end_dt = block[-1].valid_to.astimezone(tz)
@@ -171,7 +171,28 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     start_minutes = now_minutes + 2
                     if end_minutes <= start_minutes:
                         continue
-            desired_blocks.append({"start": start_minutes, "end": end_minutes, "dt": start_dt, "end_dt": end_dt})
+            
+            block_mask = TESLA_MASKS[start_dt.weekday()]
+            
+            raw_desired_blocks.append({
+                "start": start_minutes, 
+                "end": end_minutes, 
+                "dt": start_dt, 
+                "end_dt": end_dt,
+                "mask": block_mask
+            })
+
+        # Merge desired blocks that have identical times
+        desired_blocks = []
+        for db_block in raw_desired_blocks:
+            merged = False
+            for mb in desired_blocks:
+                if db_block["start"] == mb["start"] and db_block["end"] == mb["end"]:
+                    mb["mask"] |= db_block["mask"]
+                    merged = True
+                    break
+            if not merged:
+                desired_blocks.append(db_block)
 
         schedules_to_delete = []
         schedules_to_update = []
@@ -196,7 +217,6 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                             mask |= TESLA_MASKS[idx]
 
             has_target = (mask & target_mask) != 0
-            has_today = (mask & today_mask) != 0
             
             if target_date is not None:
                 new_mask = mask
@@ -214,12 +234,13 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         break
                 
                 if matched_idx is not None:
-                    # We have a matching desired block! Add target_mask back to the schedule
-                    new_mask |= target_mask
+                    # We matched an existing schedule! 
+                    # Add this desired block's mask into the existing schedule's mask.
+                    new_mask |= desired_blocks[matched_idx]["mask"]
                     # Remove it from desired_blocks so we don't recreate it
                     desired_blocks.pop(matched_idx)
                 
-                if new_mask == 0 or (not has_today and new_mask == 0):
+                if new_mask == 0:
                     schedules_to_delete.append(sched_id)
                 elif new_mask != mask:
                     schedules_to_update.append({
@@ -231,7 +252,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         "lon": sched.get("longitude") or float(user.home_longitude)
                     })
             else:
-                # We are doing a full rebuild for today, delete everything
+                # We are doing a full rebuild (manual sync), delete everything
                 schedules_to_delete.append(sched_id)
 
         woke_up = False
@@ -275,7 +296,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 
                 for _ in range(6):
                     try:
-                        await tesla.add_charge_schedule(
+                        res = await tesla.add_charge_schedule(
                             access_token=token,
                             vehicle_id=user.tesla.vehicle_id,
                             days_of_week=days_of_week_str,
@@ -303,7 +324,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             base_id = int(time.time())
 
             for idx, block in enumerate(desired_blocks):
-                mask_val = target_mask if target_date else today_mask
+                mask_val = block["mask"]
                 
                 days_list = []
                 for i in range(7):

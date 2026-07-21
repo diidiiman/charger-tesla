@@ -154,11 +154,12 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
         today_mask = TESLA_MASKS[now_local.weekday()]
         
         # Convert desired blocks into time windows
-        raw_desired_blocks = []
+        desired_blocks = []
         for block in blocks:
             start_dt = block[0].valid_from.astimezone(tz)
             end_dt = block[-1].valid_to.astimezone(tz)
             
+            # Skip blocks that have completely passed today
             if target_date is None and end_dt <= now_local:
                 continue
 
@@ -173,26 +174,16 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         continue
             
             block_mask = TESLA_MASKS[start_dt.weekday()]
+            block_day_str = days_map_str[start_dt.weekday()]
             
-            raw_desired_blocks.append({
+            desired_blocks.append({
                 "start": start_minutes, 
                 "end": end_minutes, 
                 "dt": start_dt, 
                 "end_dt": end_dt,
-                "mask": block_mask
+                "mask": block_mask,
+                "day_str": block_day_str
             })
-
-        # Merge desired blocks that have identical times
-        desired_blocks = []
-        for db_block in raw_desired_blocks:
-            merged = False
-            for mb in desired_blocks:
-                if db_block["start"] == mb["start"] and db_block["end"] == mb["end"]:
-                    mb["mask"] |= db_block["mask"]
-                    merged = True
-                    break
-            if not merged:
-                desired_blocks.append(db_block)
 
         schedules_to_delete = []
         schedules_to_update = []
@@ -202,7 +193,6 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 continue
             sched_id = int(sched["id"])
             
-            # Handle days_of_week parsing
             raw_days = sched.get("days_of_week", 0)
             mask = 0
             if isinstance(raw_days, int):
@@ -211,48 +201,36 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 try:
                     mask = int(raw_days)
                 except ValueError:
-                    # string like "MON,TUES"
                     for idx, d_str in enumerate(days_map_str):
                         if d_str in str(raw_days).upper():
                             mask |= TESLA_MASKS[idx]
 
             has_target = (mask & target_mask) != 0
+            has_today = (mask & today_mask) != 0
             
             if target_date is not None:
                 new_mask = mask
                 if has_target:
+                    # Strip tomorrow's mask from the existing schedule
                     new_mask = mask & ~target_mask
                 
-                # Check if this existing schedule matches one of our desired blocks perfectly
-                sched_start = sched.get("start_time")
-                sched_end = sched.get("end_time")
-                
-                matched_idx = None
-                for idx, b in enumerate(desired_blocks):
-                    if sched_start == b["start"] and sched_end == b["end"]:
-                        matched_idx = idx
-                        break
-                
-                if matched_idx is not None:
-                    # We matched an existing schedule! 
-                    # Add this desired block's mask into the existing schedule's mask.
-                    new_mask |= desired_blocks[matched_idx]["mask"]
-                    # Remove it from desired_blocks so we don't recreate it
-                    desired_blocks.pop(matched_idx)
-                
+                # If the schedule doesn't apply to today AND doesn't apply to tomorrow, it's stale
+                if not has_today and not has_target:
+                    new_mask = 0
+
                 if new_mask == 0:
                     schedules_to_delete.append(sched_id)
                 elif new_mask != mask:
                     schedules_to_update.append({
                         "id": sched_id,
                         "days_of_week": new_mask,
-                        "start_time": sched_start,
-                        "end_time": sched_end,
+                        "start_time": sched.get("start_time"),
+                        "end_time": sched.get("end_time"),
                         "lat": sched.get("latitude") or float(user.home_latitude),
                         "lon": sched.get("longitude") or float(user.home_longitude)
                     })
             else:
-                # We are doing a full rebuild (manual sync), delete everything
+                # Manual sync: full rebuild of today and tomorrow, delete everything
                 schedules_to_delete.append(sched_id)
 
         woke_up = False
@@ -324,14 +302,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             base_id = int(time.time())
 
             for idx, block in enumerate(desired_blocks):
-                mask_val = block["mask"]
-                
-                days_list = []
-                for i in range(7):
-                    if mask_val & TESLA_MASKS[i]:
-                        days_list.append(days_map_str[i])
-                days_of_week_str = ",".join(days_list)
-                
+                days_of_week_str = block["day_str"]
                 start_dt = block["dt"]
                 end_dt = block["end_dt"]
                 
@@ -365,7 +336,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
                 if user.push_token and user.price_change_reminder:
                     msg_title = "Charging Schedule Set"
-                    msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price ≤ {threshold:.4f} {user.currency}/kWh)."
+                    msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price <= {threshold:.4f} {user.currency}/kWh)."
                     asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
                     
                 await asyncio.sleep(2)  # Avoid rate limits when adding multiple blocks

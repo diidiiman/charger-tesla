@@ -145,7 +145,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             sched_list = []
         
         # Determine bitmasks
-        TESLA_MASKS = [2, 4, 8, 16, 32, 64, 1]  # MON, TUE, WED, THU, FRI, SAT, SUN
+        TESLA_MASKS = [1, 2, 4, 8, 16, 32, 64]  # MON, TUE, WED, THU, FRI, SAT, SUN
         days_map_str = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
         
         target_mask = 0

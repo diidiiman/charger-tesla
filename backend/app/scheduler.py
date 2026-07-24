@@ -129,7 +129,20 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
     # 4. Clear old/conflicting schedules and send new ones
     try:
-        schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
+        schedules = None
+        for _ in range(4):
+            try:
+                schedules = await tesla.get_charge_schedules(token, user.tesla.vehicle_id)
+                break
+            except ValueError:
+                try:
+                    await tesla.wake_up(token, user.tesla.vehicle_id)
+                except Exception:
+                    pass
+                await asyncio.sleep(5)
+                
+        if schedules is None:
+            raise ValueError("Vehicle remained asleep after wake attempts")
         
         if isinstance(schedules, list):
             sched_list = schedules
@@ -145,7 +158,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             sched_list = []
         
         # Determine bitmasks
-        TESLA_MASKS = [1, 2, 4, 8, 16, 32, 64]  # MON, TUE, WED, THU, FRI, SAT, SUN
+        TESLA_MASKS = [2, 4, 8, 16, 32, 64, 1]  # MON, TUE, WED, THU, FRI, SAT, SUN
         days_map_str = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
         
         target_mask = 0
@@ -234,9 +247,9 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 schedules_to_delete.append(sched_id)
 
         woke_up = False
-        async def ensure_awake():
+        async def ensure_awake(force=False):
             nonlocal woke_up
-            if not woke_up:
+            if not woke_up or force:
                 try:
                     await tesla.wake_up(token, user.tesla.vehicle_id)
                     await asyncio.sleep(5)
@@ -254,7 +267,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         success = True
                         break
                     except ValueError:
-                        await ensure_awake()
+                        await ensure_awake(force=True)
                     except Exception as e:
                         log.warning("Non-retryable error removing schedule %s: %s", sched_id, e)
                         break
@@ -289,7 +302,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         success = True
                         break
                     except ValueError:
-                        await ensure_awake()
+                        await ensure_awake(force=True)
                     except Exception as e:
                         log.error("Failed to update schedule %s: %s", update["id"], e)
                         break
@@ -298,10 +311,18 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
 
         if desired_blocks:
             await ensure_awake()
-            import time
-            base_id = int(time.time())
+            
+            existing_ids = set()
+            for sched in sched_list:
+                if "id" in sched:
+                    existing_ids.add(int(sched["id"]))
+            
+            next_id = 1
 
             for idx, block in enumerate(desired_blocks):
+                while next_id in existing_ids:
+                    next_id += 1
+                    
                 days_of_week_str = block["day_str"]
                 start_dt = block["dt"]
                 end_dt = block["end_dt"]
@@ -319,13 +340,13 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                             start_time=block["start"],
                             end_time=block["end"],
                             one_time=False,
-                            id=base_id + idx
+                            id=next_id
                         )
                         log.info("add_charge_schedule response for user=%s: %s", user.id, res)
                         success = True
                         break
                     except ValueError:
-                        await ensure_awake()
+                        await ensure_awake(force=True)
                     except Exception as e:
                         log.error("add_charge_schedule fatal error for block %s to %s for user=%s: %s", start_dt, end_dt, user.id, e)
                         break
@@ -334,6 +355,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                     log.error("add_charge_schedule failed completely after retries for block %s to %s for user=%s", start_dt, end_dt, user.id)
                     continue
 
+                existing_ids.add(next_id)
                 if user.push_token and user.price_change_reminder:
                     msg_title = "Charging Schedule Set"
                     msg_body = f"Scheduled to charge on {start_dt.strftime('%A')} from {start_dt.strftime('%H:%M')} to {end_dt.strftime('%H:%M')} (Price <= {threshold:.4f} {user.currency}/kWh)."

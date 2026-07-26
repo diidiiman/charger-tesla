@@ -32,3 +32,6 @@ Whenever the AI is tasked with backend modifications, it MUST follow these steps
 5. Write or update Pytest tests covering the Route itself to verify status codes and payloads.
 6. Once all code is written, format it using `black`: `docker compose exec backend black .`
 7. Run the tests and ensure they pass: `docker compose exec backend pytest`
+
+**CRITICAL NOTE FOR TESLA API (SCHEDULER):**
+When interacting with `add_charge_schedule` via the Tesla Fleet API, DO NOT attempt to use integer bitmasks for the `days_of_week` parameter. Although Tesla stores the schedule as a bitmask internally, the REST API strictly expects a comma-separated string (e.g., `"MON,TUES,WED,THURS,FRI,SAT,SUN"`). Using an integer bitmask payload (e.g., `16`) will result in a 400 Bad Request error.

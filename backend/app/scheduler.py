@@ -279,14 +279,18 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
             for update in schedules_to_update:
                 success = False
                 
-                days_of_week_int = update["days_of_week"]
+                days_list = []
+                for i in range(7):
+                    if update["days_of_week"] & TESLA_MASKS[i]:
+                        days_list.append(days_map_str[i])
+                days_of_week_str = ",".join(days_list)
                 
                 for _ in range(6):
                     try:
                         res = await tesla.add_charge_schedule(
                             access_token=token,
                             vehicle_id=user.tesla.vehicle_id,
-                            days_of_week=days_of_week_int,
+                            days_of_week=days_of_week_str,
                             enabled=True,
                             lat=float(update["lat"]),
                             lon=float(update["lon"]),
@@ -319,7 +323,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                 while next_id in existing_ids:
                     next_id += 1
                     
-                days_of_week_int = block["mask"]
+                days_of_week_str = block["day_str"]
                 start_dt = block["dt"]
                 end_dt = block["end_dt"]
                 
@@ -329,7 +333,7 @@ async def sync_charge_schedule(session, user: User, now: datetime = None, target
                         res = await tesla.add_charge_schedule(
                             access_token=token,
                             vehicle_id=user.tesla.vehicle_id,
-                            days_of_week=days_of_week_int,
+                            days_of_week=days_of_week_str,
                             enabled=True,
                             lat=float(user.home_latitude),
                             lon=float(user.home_longitude),

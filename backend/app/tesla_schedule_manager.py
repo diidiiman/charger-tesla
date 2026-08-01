@@ -9,7 +9,7 @@ from .notifications import send_push_notification
 
 log = logging.getLogger(__name__)
 
-TESLA_MASKS = [2, 4, 8, 16, 32, 64, 1]  # MON, TUE, WED, THU, FRI, SAT, SUN
+TESLA_MASKS = [1, 2, 4, 8, 16, 32, 64]  # MON, TUE, WED, THU, FRI, SAT, SUN
 DAYS_MAP_STR = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
 
 class TeslaScheduleManager:

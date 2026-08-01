@@ -58,8 +58,8 @@ async def test_daily_scheduler_flow():
         
         with patch("app.tesla_schedule_manager.tesla") as mock_tesla:
             mock_tesla.get_charge_schedules = AsyncMock(return_value=[
-                {"id": 1, "days_of_week": 4, "start_time": 60, "end_time": 120}, # Today (Tue)
-                {"id": 2, "days_of_week": 8, "start_time": 0, "end_time": 60},   # Tomorrow old (Wed)
+                {"id": 1, "days_of_week": 2, "start_time": 60, "end_time": 120}, # Today (Tue)
+                {"id": 2, "days_of_week": 4, "start_time": 0, "end_time": 60},   # Tomorrow old (Wed)
             ])
             mock_tesla.remove_charge_schedule = AsyncMock()
             mock_tesla.add_charge_schedule = AsyncMock()

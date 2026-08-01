@@ -42,5 +42,5 @@ def test_blocks_to_time_windows():
     assert len(windows) == 1
     assert windows[0]["start"] == 10 * 60
     assert windows[0]["end"] == 12 * 60
-    assert windows[0]["mask"] == 1
+    assert windows[0]["mask"] == 64
     assert windows[0]["day_str"] == "SUN"

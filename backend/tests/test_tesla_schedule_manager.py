@@ -55,9 +55,9 @@ async def test_clear_all_schedules(manager):
         mock_tesla.remove_charge_schedule.assert_called_once_with("fake_token", "fake_vehicle_id", 1)
 
 def test_calculate_schedule_changes():
-    sched_list = [{"id": 1, "days_of_week": 12}] # 4 (Wed) + 8 (Thu)
-    target_date = date(2023, 10, 11) # Wednesday, mask=4
-    now_local = datetime(2023, 10, 10, 12, tzinfo=timezone.utc) # Tuesday, mask=2
+    sched_list = [{"id": 1, "days_of_week": 24}] # 8 (Wed) + 16 (Thu)
+    target_date = date(2023, 10, 11) # Wednesday, mask=8
+    now_local = datetime(2023, 10, 10, 12, tzinfo=timezone.utc) # Tuesday, mask=4
     
     to_delete, to_update = TeslaScheduleManager.calculate_schedule_changes(
         sched_list, target_date, now_local, 59.0, 10.0
@@ -66,7 +66,7 @@ def test_calculate_schedule_changes():
     assert to_delete == []
     assert len(to_update) == 1
     assert to_update[0]["id"] == 1
-    assert to_update[0]["days_of_week"] == 8 # Strip Wed
+    assert to_update[0]["days_of_week"] == 16 # Strip Wed
 
 @pytest.mark.asyncio
 async def test_execute_deletions(manager):
@@ -83,7 +83,7 @@ async def test_execute_updates(manager):
         manager.ensure_awake = AsyncMock()
         mock_tesla.add_charge_schedule = AsyncMock()
         
-        updates = [{"id": 1, "days_of_week": 4, "start_time": 0, "end_time": 60, "lat": 1.0, "lon": 2.0}]
+        updates = [{"id": 1, "days_of_week": 8, "start_time": 0, "end_time": 60, "lat": 1.0, "lon": 2.0}]
         await manager.execute_updates(updates)
         
         mock_tesla.add_charge_schedule.assert_called_once()

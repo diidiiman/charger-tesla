@@ -6,6 +6,7 @@ import secrets
 import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlparse, parse_qs
+import logging
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import get_settings
 from .crypto import decrypt, encrypt
 from .models import TeslaAccount, User
+
+log = logging.getLogger(__name__)
 
 SCOPES = "openid offline_access vehicle_device_data vehicle_location vehicle_charging_cmds vehicle_cmds"
 
@@ -206,25 +209,32 @@ async def add_charge_schedule(
     if one_time is not None:
         payload["one_time"] = one_time
 
+    log.info("Adding charge schedule for vehicle %s with payload: %s", vehicle_id, payload)
     return await _api(
         "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/add_charge_schedule", json=payload
     )
 
 
 async def remove_charge_schedule(access_token: str, vehicle_id: str, id: int) -> dict:
+    payload = {"id": id}
+    log.info("Removing charge schedule for vehicle %s with payload: %s", vehicle_id, payload)
     return await _api(
-        "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/remove_charge_schedule", json={"id": id}
+        "POST", access_token, f"/api/1/vehicles/{vehicle_id}/command/remove_charge_schedule", json=payload
     )
 
 
 async def get_charge_schedules(access_token: str, vehicle_id: str) -> dict:
+    log.info("Fetching charge schedules for vehicle %s", vehicle_id)
     data = await _api(
         "GET",
         access_token,
         f"/api/1/vehicles/{vehicle_id}/vehicle_data?endpoints=charge_schedule_data",
     )
+    log.info("Raw vehicle_data response from Tesla for %s: %s", vehicle_id, data)
     resp = data.get("response", {})
-    return resp.get("charge_schedule_data", {}).get("charge_schedules", {}) if isinstance(resp, dict) else {}
+    schedules = resp.get("charge_schedule_data", {}).get("charge_schedules", {}) if isinstance(resp, dict) else {}
+    log.info("Parsed charge schedules for %s: %s", vehicle_id, schedules)
+    return schedules
 
 
 async def configure_telemetry(access_token: str, vehicle_vin: str) -> dict:

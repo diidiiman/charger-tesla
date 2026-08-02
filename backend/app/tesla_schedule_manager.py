@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -175,12 +176,9 @@ class TeslaScheduleManager:
         if not desired_blocks:
             return
         await self.ensure_awake()
-        existing_ids = {int(s["id"]) for s in sched_list if "id" in s}
-        next_id = 1
 
-        for block in desired_blocks:
-            while next_id in existing_ids:
-                next_id += 1
+        for i, block in enumerate(desired_blocks):
+            next_id = int(time.time()) + i
                 
             success = False
             for _ in range(6):
@@ -206,9 +204,10 @@ class TeslaScheduleManager:
                     break
                     
             if success:
-                existing_ids.add(next_id)
                 if user.push_token and user.price_change_reminder:
                     msg_title = "Charging Schedule Set"
                     msg_body = f"Scheduled to charge on {block['dt'].strftime('%A')} from {block['dt'].strftime('%H:%M')} to {block['end_dt'].strftime('%H:%M')} (Price <= {threshold:.4f} {user.currency}/kWh)."
                     asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
-                await asyncio.sleep(2)
+                
+                if len(desired_blocks) > 1 and i < len(desired_blocks) - 1:
+                    await asyncio.sleep(1)

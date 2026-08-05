@@ -105,10 +105,9 @@ async def test_execute_additions(manager):
         blocks = [{"start": 0, "end": 60, "day_str": "WED", "dt": datetime.now(), "end_dt": datetime.now()}]
         
         with patch("asyncio.sleep", AsyncMock()):
-            with patch("time.time", return_value=1700000000.0):
-                await manager.execute_additions(blocks, [{"id": 1}], user, 0.5)
+            await manager.execute_additions(blocks, [{"id": 1}], user, 0.5)
         
         mock_tesla.add_charge_schedule.assert_called_once()
         kwargs = mock_tesla.add_charge_schedule.call_args[1]
-        assert kwargs["id"] == 1700000000 # 1700000000 + 0
+        assert "id" not in kwargs
         assert kwargs["days_of_week"] == "WED"

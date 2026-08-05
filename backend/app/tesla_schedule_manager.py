@@ -178,8 +178,6 @@ class TeslaScheduleManager:
         await self.ensure_awake()
 
         for i, block in enumerate(desired_blocks):
-            next_id = int(time.time()) + i
-                
             success = False
             for _ in range(6):
                 try:
@@ -192,8 +190,7 @@ class TeslaScheduleManager:
                         lon=float(user.home_longitude),
                         start_time=block["start"],
                         end_time=block["end"],
-                        one_time=False,
-                        id=next_id
+                        one_time=False
                     )
                     success = True
                     break

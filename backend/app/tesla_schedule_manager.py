@@ -207,4 +207,4 @@ class TeslaScheduleManager:
                     asyncio.create_task(send_push_notification(user.push_token, msg_title, msg_body))
                 
                 if len(desired_blocks) > 1 and i < len(desired_blocks) - 1:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(2)

@@ -54,6 +54,12 @@ class ScheduleCalculator:
             start_minutes = start_dt.hour * 60 + start_dt.minute
             end_minutes = end_dt.hour * 60 + end_dt.minute
             
+            # Tesla API expects minutes since midnight. If a block ends at exactly 
+            # midnight the next day, it calculates to 0. We must set it to 1440 
+            # so the schedule has a valid duration (start_time < end_time).
+            if end_minutes == 0 and end_dt.date() > start_dt.date():
+                end_minutes = 1440
+
             if target_date is None and start_dt.date() == now_local.date():
                 now_minutes = now_local.hour * 60 + now_local.minute
                 if start_minutes < now_minutes:

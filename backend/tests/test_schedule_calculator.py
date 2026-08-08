@@ -44,3 +44,18 @@ def test_blocks_to_time_windows():
     assert windows[0]["end"] == 12 * 60
     assert windows[0]["mask"] == 1
     assert windows[0]["day_str"] == "SUN"
+    
+def test_blocks_to_time_windows_midnight():
+    tz = zoneinfo.ZoneInfo("UTC")
+    now = datetime(2023, 1, 1, 8, tzinfo=timezone.utc)
+    target_date = date(2023, 1, 1) # Sunday, mask=1
+    
+    p1 = RegionPrice(valid_from=datetime(2023, 1, 1, 22, tzinfo=timezone.utc), valid_to=datetime(2023, 1, 2, 0, tzinfo=timezone.utc))
+    blocks = [[p1]]
+    
+    windows = ScheduleCalculator.blocks_to_time_windows(blocks, tz, now, target_date)
+    assert len(windows) == 1
+    assert windows[0]["start"] == 22 * 60
+    assert windows[0]["end"] == 1440
+    assert windows[0]["mask"] == 1
+    assert windows[0]["day_str"] == "SUN"

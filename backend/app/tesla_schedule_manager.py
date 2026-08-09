@@ -23,7 +23,7 @@ class TeslaScheduleManager:
         if not self.woke_up or force:
             try:
                 await tesla.wake_up(self.token, self.vehicle_id)
-                await asyncio.sleep(5)
+                await asyncio.sleep(15)
                 self.woke_up = True
             except Exception:
                 pass
@@ -43,7 +43,7 @@ class TeslaScheduleManager:
             return sched_list
         return []
 
-    async def fetch_schedules(self, retries: int = 4) -> List[Dict[str, Any]]:
+    async def fetch_schedules(self, retries: int = 6) -> List[Dict[str, Any]]:
         for _ in range(retries):
             try:
                 schedules = await tesla.get_charge_schedules(self.token, self.vehicle_id)

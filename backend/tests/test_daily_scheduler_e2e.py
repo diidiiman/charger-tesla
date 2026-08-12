@@ -80,3 +80,27 @@ async def test_daily_scheduler_flow():
             mock_tesla.add_charge_schedule.assert_called_once()
             kwargs = mock_tesla.add_charge_schedule.call_args[1]
             assert kwargs["days_of_week"] == "WED"
+
+@pytest.mark.asyncio
+async def test_sync_charge_schedule_with_secondary_user():
+    session = AsyncMock()
+    user1 = create_mock_user() # Incomplete user
+    user1.subscription.active = False
+    user1.id = 2
+    
+    # We mock the DB query to return another fully configured user for the same vehicle
+    user2 = create_mock_user()
+    user2.id = 1
+    
+    mock_result = MagicMock()
+    mock_result.scalars().all.return_value = [user2]
+    session.execute.return_value = mock_result
+    
+    with patch("app.scheduler.tesla") as mock_tesla_scheduler:
+        mock_tesla_scheduler.get_access_token = AsyncMock(return_value="token")
+        
+        with patch("app.scheduler.TeslaScheduleManager.clear_all_schedules", new_callable=AsyncMock) as mock_clear:
+            await sync_charge_schedule(session, user1, now=datetime(2023, 10, 10, 13, 0, 0, tzinfo=timezone.utc), target_date=date(2023, 10, 11))
+            
+            # Since there's a fully configured manager (user2), clear_all_schedules shouldn't be called
+            mock_clear.assert_not_called()

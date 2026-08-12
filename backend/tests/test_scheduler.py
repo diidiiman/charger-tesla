@@ -73,6 +73,10 @@ async def test_sync_no_auto_charge(mock_tesla):
     session = AsyncMock()
     user = create_mock_user(auto_charge=False)
     
+    mock_result = MagicMock()
+    mock_result.scalars().all.return_value = []
+    session.execute.return_value = mock_result
+    
     with patch("app.scheduler.TeslaScheduleManager") as MockManager:
         mock_instance = MockManager.return_value
         mock_instance.clear_all_schedules = AsyncMock()

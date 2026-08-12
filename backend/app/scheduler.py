@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import prices, tesla
 from .db import SessionLocal
-from .models import Subscription, User
+from .models import Subscription, User, TeslaAccount
 from .schedule_calculator import ScheduleCalculator
 from .tesla_schedule_manager import TeslaScheduleManager
 
@@ -61,7 +61,21 @@ async def sync_charge_schedule(session: AsyncSession, user: User, now: datetime 
     tesla_manager = TeslaScheduleManager(token, user.tesla.vehicle_id)
 
     if not auto_charge or user.threshold_price is None or not user.region or user.home_latitude is None or user.home_longitude is None:
-        await tesla_manager.clear_all_schedules()
+        stmt = select(User).join(TeslaAccount).where(
+            TeslaAccount.vehicle_id == user.tesla.vehicle_id,
+            User.id != user.id,
+            User.auto_charge_enabled == True,
+            User.threshold_price.is_not(None),
+            User.region.is_not(None),
+            User.home_latitude.is_not(None)
+        ).options(selectinload(User.subscription))
+        
+        other_users = (await session.execute(stmt)).scalars().all()
+        has_valid_manager = any(u.subscription and u.subscription.active for u in other_users)
+        
+        if not has_valid_manager:
+            await tesla_manager.clear_all_schedules()
+            
         return
 
     if target_date is not None:

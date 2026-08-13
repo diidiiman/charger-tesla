@@ -88,7 +88,7 @@ async def sync_charge_schedule(session: AsyncSession, user: User, now: datetime 
     stmt = select(prices.RegionPrice).where(
         prices.RegionPrice.region == user.region,
         prices.RegionPrice.valid_from >= start_time,
-        prices.RegionPrice.valid_to <= end_time
+        prices.RegionPrice.valid_from < end_time
     ).order_by(prices.RegionPrice.valid_from)
     
     result = await session.execute(stmt)

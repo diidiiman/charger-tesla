@@ -142,6 +142,7 @@ async def test_sync_adds_placeholder_when_no_cheap_hours(mock_tesla, mock_prices
     with patch("app.scheduler.TeslaScheduleManager") as MockManager:
         MockManager.calculate_schedule_changes.return_value = ([], [])
         MockManager.has_surviving_schedule_for_day.return_value = False
+        MockManager.has_today_window.return_value = False
         mock_instance = MockManager.return_value
         mock_instance.fetch_schedules = AsyncMock(return_value=[])
         mock_instance.execute_deletions = AsyncMock()
@@ -155,9 +156,9 @@ async def test_sync_adds_placeholder_when_no_cheap_hours(mock_tesla, mock_prices
         args = mock_instance.execute_additions.call_args[0]
         assert len(args[0]) == 1
         assert args[0][0]["placeholder"] is True
-        assert args[0][0]["start"] == 180
-        assert args[0][0]["end"] == 240
-        assert args[0][0]["day_str"] == "TUES"
+        assert args[0][0]["start"] == 18 * 60
+        assert args[0][0]["end"] == 19 * 60
+        assert args[0][0]["day_str"] == "WED"
 
 
 @pytest.mark.asyncio

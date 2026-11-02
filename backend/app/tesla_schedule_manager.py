@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Iterator, Optional, Tuple
 
 from . import tesla
 from .models import User
@@ -108,6 +108,106 @@ class TeslaScheduleManager:
             if (mask & day_mask) != 0:
                 return True
         return False
+
+    @staticmethod
+    def _minutes(value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        return int(value)
+
+    @staticmethod
+    def _iter_effective_schedules(
+        sched_list: List[Dict[str, Any]],
+        schedules_to_delete: List[int],
+        schedules_to_update: List[Dict[str, Any]],
+    ) -> Iterator[Tuple[Dict[str, Any], int, int, Any, Any, Optional[Dict[str, Any]]]]:
+        delete_ids = set(schedules_to_delete)
+        updates_by_id = {int(update["id"]): update for update in schedules_to_update}
+        for sched in sched_list:
+            if "id" not in sched:
+                continue
+            sched_id = int(sched["id"])
+            if sched_id in delete_ids:
+                continue
+            update = updates_by_id.get(sched_id)
+            if update is not None:
+                mask = int(update["days_of_week"])
+                start = update.get("start_time")
+                end = update.get("end_time")
+            else:
+                mask = TeslaScheduleManager._schedule_mask(sched)
+                start = sched.get("start_time")
+                end = sched.get("end_time")
+            yield sched, sched_id, mask, start, end, update
+
+    @staticmethod
+    def has_today_window(
+        sched_list: List[Dict[str, Any]],
+        schedules_to_delete: List[int],
+        schedules_to_update: List[Dict[str, Any]],
+        today_mask: int,
+        start_minutes: int,
+        end_minutes: int,
+    ) -> bool:
+        for _, _, mask, start, end, _ in TeslaScheduleManager._iter_effective_schedules(
+            sched_list, schedules_to_delete, schedules_to_update
+        ):
+            if (mask & today_mask) == 0:
+                continue
+            if (
+                TeslaScheduleManager._minutes(start) == start_minutes
+                and TeslaScheduleManager._minutes(end) == end_minutes
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def remove_today_window(
+        sched_list: List[Dict[str, Any]],
+        schedules_to_delete: List[int],
+        schedules_to_update: List[Dict[str, Any]],
+        today_mask: int,
+        start_minutes: int,
+        end_minutes: int,
+        user_lat: float,
+        user_lon: float,
+    ) -> None:
+        for (
+            sched,
+            sched_id,
+            mask,
+            start,
+            end,
+            update,
+        ) in TeslaScheduleManager._iter_effective_schedules(
+            sched_list, schedules_to_delete, schedules_to_update
+        ):
+            if (mask & today_mask) == 0:
+                continue
+            if (
+                TeslaScheduleManager._minutes(start) != start_minutes
+                or TeslaScheduleManager._minutes(end) != end_minutes
+            ):
+                continue
+
+            new_mask = mask & ~today_mask
+            if new_mask == 0:
+                if update is not None:
+                    schedules_to_update.remove(update)
+                schedules_to_delete.append(sched_id)
+            elif update is not None:
+                update["days_of_week"] = new_mask
+            else:
+                schedules_to_update.append(
+                    {
+                        "id": sched_id,
+                        "days_of_week": new_mask,
+                        "start_time": start,
+                        "end_time": end,
+                        "lat": sched.get("latitude") or user_lat,
+                        "lon": sched.get("longitude") or user_lon,
+                    }
+                )
 
     @staticmethod
     def calculate_schedule_changes(

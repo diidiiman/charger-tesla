@@ -62,6 +62,71 @@ async def test_clear_all_schedules(manager):
         )
 
 
+def test_remove_today_window_deletes_single_day_placeholder():
+    sched_list = [
+        {"id": 5, "days_of_week": 4, "start_time": 18 * 60, "end_time": 19 * 60}
+    ]
+    to_delete = []
+    to_update = []
+
+    TeslaScheduleManager.remove_today_window(
+        sched_list, to_delete, to_update, 4, 18 * 60, 19 * 60, 59.0, 10.0
+    )
+
+    assert to_delete == [5]
+    assert to_update == []
+
+
+def test_remove_today_window_strips_today_from_shared_schedule():
+    sched_list = [
+        {
+            "id": 5,
+            "days_of_week": 36,  # Tuesday (4) + Friday (32)
+            "start_time": 18 * 60,
+            "end_time": 19 * 60,
+            "latitude": 1.0,
+            "longitude": 2.0,
+        }
+    ]
+    to_delete = []
+    to_update = []
+
+    TeslaScheduleManager.remove_today_window(
+        sched_list, to_delete, to_update, 4, 18 * 60, 19 * 60, 59.0, 10.0
+    )
+
+    assert to_delete == []
+    assert len(to_update) == 1
+    assert to_update[0]["id"] == 5
+    assert to_update[0]["days_of_week"] == 32
+    assert to_update[0]["lat"] == 1.0
+    assert to_update[0]["lon"] == 2.0
+
+
+def test_remove_today_window_deletes_when_remaining_mask_is_today():
+    sched_list = [
+        {"id": 5, "days_of_week": 12, "start_time": 18 * 60, "end_time": 19 * 60}
+    ]
+    to_delete = []
+    to_update = [
+        {
+            "id": 5,
+            "days_of_week": 4,
+            "start_time": 18 * 60,
+            "end_time": 19 * 60,
+            "lat": 59.0,
+            "lon": 10.0,
+        }
+    ]
+
+    TeslaScheduleManager.remove_today_window(
+        sched_list, to_delete, to_update, 4, 18 * 60, 19 * 60, 59.0, 10.0
+    )
+
+    assert to_delete == [5]
+    assert to_update == []
+
+
 def test_calculate_schedule_changes():
     sched_list = [{"id": 1, "days_of_week": 24}]  # 8 (Wed) + 16 (Thu)
     target_date = date(2023, 10, 11)  # Wednesday, mask=8

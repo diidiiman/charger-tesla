@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import prices, tesla
 from .db import SessionLocal
 from .models import Subscription, User, TeslaAccount
-from .schedule_calculator import TESLA_MASKS, ScheduleCalculator
+from .schedule_calculator import (
+    PLACEHOLDER_END_MINUTES,
+    PLACEHOLDER_START_MINUTES,
+    TESLA_MASKS,
+    ScheduleCalculator,
+)
 from .tesla_schedule_manager import TeslaScheduleManager
 
 log = logging.getLogger(__name__)
@@ -146,12 +151,33 @@ async def sync_charge_schedule(
         )
 
         today_mask = TESLA_MASKS[now_local.weekday()]
+        if target_date is not None and TeslaScheduleManager.has_today_window(
+            sched_list,
+            schedules_to_delete,
+            schedules_to_update,
+            today_mask,
+            PLACEHOLDER_START_MINUTES,
+            PLACEHOLDER_END_MINUTES,
+        ):
+            today_is_real = await _today_has_placeholder_cheap_block(
+                session, user, tz, now_local, threshold, multiplier
+            )
+            if not today_is_real:
+                TeslaScheduleManager.remove_today_window(
+                    sched_list,
+                    schedules_to_delete,
+                    schedules_to_update,
+                    today_mask,
+                    PLACEHOLDER_START_MINUTES,
+                    PLACEHOLDER_END_MINUTES,
+                    float(user.home_latitude),
+                    float(user.home_longitude),
+                )
+
         has_today = TeslaScheduleManager.has_surviving_schedule_for_day(
             sched_list, schedules_to_delete, schedules_to_update, today_mask
         )
-        if ScheduleCalculator.should_add_placeholder(
-            desired_blocks, has_today, now_local
-        ):
+        if ScheduleCalculator.should_add_placeholder(desired_blocks, has_today):
             desired_blocks.append(ScheduleCalculator.make_placeholder_block(now_local))
 
         await tesla_manager.execute_deletions(schedules_to_delete)
@@ -162,6 +188,43 @@ async def sync_charge_schedule(
 
     except Exception as e:
         log.warning("failed to sync schedules for user=%s: %s", user.id, e)
+
+
+async def _today_has_placeholder_cheap_block(
+    session: AsyncSession,
+    user: User,
+    tz: zoneinfo.ZoneInfo,
+    now_local: datetime,
+    threshold: float,
+    multiplier: float,
+) -> bool:
+    today_start = datetime.combine(now_local.date(), datetime.min.time()).replace(
+        tzinfo=tz
+    )
+    tomorrow_start = datetime.combine(
+        now_local.date() + timedelta(days=1), datetime.min.time()
+    ).replace(tzinfo=tz)
+    stmt = (
+        select(prices.RegionPrice)
+        .where(
+            prices.RegionPrice.region == user.region,
+            prices.RegionPrice.valid_from >= today_start,
+            prices.RegionPrice.valid_from < tomorrow_start,
+        )
+        .order_by(prices.RegionPrice.valid_from)
+    )
+    result = await session.execute(stmt)
+    region_prices = result.scalars().all()
+    cheap_hours = ScheduleCalculator.get_cheap_prices(
+        region_prices, threshold, multiplier
+    )
+    blocks = ScheduleCalculator.group_into_blocks(cheap_hours, tz)
+    windows = ScheduleCalculator.blocks_to_time_windows(
+        blocks, tz, now_local, now_local.date()
+    )
+    return ScheduleCalculator.has_window(
+        windows, PLACEHOLDER_START_MINUTES, PLACEHOLDER_END_MINUTES
+    )
 
 
 async def _sync_all_users(

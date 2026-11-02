@@ -85,32 +85,28 @@ def test_blocks_to_time_windows_midnight():
 def test_make_placeholder_block():
     now = datetime(2023, 10, 10, 15, 0, tzinfo=timezone.utc)  # Tuesday
     block = ScheduleCalculator.make_placeholder_block(now)
-    assert block["start"] == 180
-    assert block["end"] == 240
-    assert block["mask"] == 4
-    assert block["day_str"] == "TUES"
+    assert block["start"] == 18 * 60
+    assert block["end"] == 19 * 60
+    assert block["mask"] == 8
+    assert block["day_str"] == "WED"
     assert block["placeholder"] is True
-    assert block["dt"].hour == 3
-    assert block["end_dt"].hour == 4
+    assert block["dt"].date() == date(2023, 10, 11)
+    assert block["dt"].hour == 18
+    assert block["end_dt"].date() == date(2023, 10, 11)
+    assert block["end_dt"].hour == 19
 
 
 def test_should_add_placeholder_when_empty_and_late():
-    now = datetime(2023, 10, 10, 15, 0, tzinfo=timezone.utc)
-    assert ScheduleCalculator.should_add_placeholder([], False, now) is True
+    assert ScheduleCalculator.should_add_placeholder([], False) is True
 
 
 def test_should_add_placeholder_when_cheap_blocks_exist():
-    now = datetime(2023, 10, 10, 15, 0, tzinfo=timezone.utc)
-    assert (
-        ScheduleCalculator.should_add_placeholder([{"start": 0}], False, now) is False
-    )
+    assert ScheduleCalculator.should_add_placeholder([{"start": 0}], False) is False
 
 
 def test_should_add_placeholder_when_today_scheduled():
-    now = datetime(2023, 10, 10, 15, 0, tzinfo=timezone.utc)
-    assert ScheduleCalculator.should_add_placeholder([], True, now) is False
+    assert ScheduleCalculator.should_add_placeholder([], True) is False
 
 
 def test_should_add_placeholder_before_4am():
-    now = datetime(2023, 10, 10, 3, 30, tzinfo=timezone.utc)
-    assert ScheduleCalculator.should_add_placeholder([], False, now) is False
+    assert ScheduleCalculator.should_add_placeholder([], False) is True

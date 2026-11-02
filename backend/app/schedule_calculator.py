@@ -6,8 +6,8 @@ from . import prices
 
 TESLA_MASKS = [2, 4, 8, 16, 32, 64, 1]  # MON, TUE, WED, THU, FRI, SAT, SUN
 DAYS_MAP_STR = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-PLACEHOLDER_START_MINUTES = 3 * 60  # 03:00
-PLACEHOLDER_END_MINUTES = 4 * 60  # 04:00
+PLACEHOLDER_START_MINUTES = 18 * 60  # 18:00
+PLACEHOLDER_END_MINUTES = 19 * 60  # 19:00
 
 
 class ScheduleCalculator:
@@ -92,9 +92,10 @@ class ScheduleCalculator:
 
     @staticmethod
     def make_placeholder_block(now_local: datetime) -> Dict[str, Any]:
-        start_dt = now_local.replace(hour=3, minute=0, second=0, microsecond=0)
-        end_dt = now_local.replace(hour=4, minute=0, second=0, microsecond=0)
-        weekday = now_local.weekday()
+        tomorrow = now_local + timedelta(days=1)
+        start_dt = tomorrow.replace(hour=18, minute=0, second=0, microsecond=0)
+        end_dt = tomorrow.replace(hour=19, minute=0, second=0, microsecond=0)
+        weekday = tomorrow.weekday()
         return {
             "start": PLACEHOLDER_START_MINUTES,
             "end": PLACEHOLDER_END_MINUTES,
@@ -106,15 +107,16 @@ class ScheduleCalculator:
         }
 
     @staticmethod
+    def has_window(blocks: List[Dict[str, Any]], start: int, end: int) -> bool:
+        return any(block["start"] == start and block["end"] == end for block in blocks)
+
+    @staticmethod
     def should_add_placeholder(
         desired_blocks: List[Dict[str, Any]],
         has_today_schedule: bool,
-        now_local: datetime,
     ) -> bool:
         if desired_blocks:
             return False
         if has_today_schedule:
-            return False
-        if now_local.hour < 4:
             return False
         return True
